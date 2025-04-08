@@ -75,7 +75,7 @@ class AIClient:
         self.game = room.game
         self.nickname = nickname  # The AI agent name
         self.nickname = nickname  # Use the AI name as the train name
-        
+
         self.is_dead = False
         self.waiting_for_respawn = False
         self.death_time = 0
@@ -176,10 +176,7 @@ class AIClient:
                 self.agent.update_agent()
 
             # Add automatic respawn logic
-            if (
-                not self.game.trains[self.nickname].alive
-                and self.waiting_for_respawn
-            ):
+            if not self.game.trains[self.nickname].alive and self.waiting_for_respawn:
                 elapsed = time.time() - self.death_time
                 if elapsed >= self.respawn_cooldown:
                     logger.debug(

@@ -3,8 +3,10 @@ from pydantic import BaseModel
 
 from common.agent_config import AgentConfig
 
+
 class ManualConfig(BaseModel):
     nickname: str
+
 
 class GameMode(Enum):
     MANUAL = "manual"

@@ -16,10 +16,7 @@ class BaseAgent:
     """Base class for all agents, enforcing the implementation of get_move()."""
 
     def __init__(
-        self,
-        nickname: str,
-        network: NetworkManager,
-        logger: str = "client.agent"
+        self, nickname: str, network: NetworkManager, logger: str = "client.agent"
     ):
         """
         Initialize the base agent. Not supposed to be modified.

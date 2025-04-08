@@ -219,7 +219,9 @@ class Server:
                 logger.debug(
                     f"Checking name and sciper availability for {message['nickname']} ({message['agent_sciper']})"
                 )
-                if self.handle_name_check(message, addr) and self.handle_sciper_check(message, addr):
+                if self.handle_name_check(message, addr) and self.handle_sciper_check(
+                    message, addr
+                ):
                     self.handle_new_client(message, addr)
             else:
                 self.client_last_activity[addr] = time.time()
@@ -256,7 +258,6 @@ class Server:
                 self.handle_client_message(addr, message, client_room)
         else:
             self.handle_client_message(addr, message, None)
-            
 
     def send_disconnect(self, addr, message="Unknown client or invalid message format"):
         """Disconnect a client from the server"""
@@ -551,15 +552,17 @@ class Server:
                 if message.get("action") == "check_name":
                     self.handle_name_check(message, addr)
                     return
-                
+
                 if message.get("action") == "check_sciper":
                     self.handle_sciper_check(message, addr)
                     return
-                
+
                 # For other message types, we need a valid room
-                logger.debug(f"Ignoring message from client {addr} as they are not in any room: {message}")
+                logger.debug(
+                    f"Ignoring message from client {addr} as they are not in any room: {message}"
+                )
                 return
-                
+
             nickname = room.clients.get(addr)
             if message.get("action") == "check_name":
                 self.handle_name_check(message, addr)
