@@ -378,8 +378,13 @@ class Room:
         """Broadcast waiting room data to all clients"""
         last_update = time.time()
         while self.running and not self.stop_waiting_room:
-            # try:
             if self.clients and not self.game_thread:
+                if self.is_full():
+                    logger.info("Room is full. Starting game")
+                    self.add_all_trains()
+                    self.start_game()
+                    continue
+
                 current_time = time.time()
                 if (
                     current_time - last_update >= 1.0 / self.config.tick_rate
@@ -558,11 +563,11 @@ class Room:
                 if name == nickname:
                     client_addr = addr
                     break
-                    
+
             if client_addr is None:
                 logger.warning(f"Could not find address for player {nickname}")
                 continue
-                
+
             if self.game.add_train(nickname):
                 response = {"type": "spawn_success", "nickname": nickname}
                 self.server_socket.sendto(
