@@ -388,39 +388,19 @@ class Server:
             else:
                 return False
 
-        # Check if the sciper exists in our mapping
-        sciper_available = sciper_to_check not in self.sciper_to_addr
-
-        # If sciper is not available, check if the associated address is in disconnected_clients
-        if not sciper_available and sciper_to_check in self.sciper_to_addr:
-            old_addr = self.sciper_to_addr[sciper_to_check]
-            if old_addr in self.disconnected_clients:
-                # If the address is in disconnected_clients, consider the sciper as available
-                sciper_available = True
-                logger.info(
-                    f"Sciper {sciper_to_check} found but associated address {old_addr} is disconnected, considering it available"
-                )
-
         if addr:
             # Prepare the response with best score if available
-            response = {"type": "sciper_check", "available": sciper_available}
-
-            # # Include best score if the player has played before
-            # if sciper_to_check in self.best_scores:
-            #     response["best_score"] = self.best_scores[sciper_to_check]
-            #     logger.info(
-            #         f"Player with sciper '{sciper_to_check}' has a best score of {self.best_scores[sciper_to_check]}"
-            #     )
+            response = {"type": "sciper_check", "available": True}
 
             try:
                 self.server_socket.sendto((json.dumps(response) + "\n").encode(), addr)
                 logger.info(
-                    f"Sciper check for '{sciper_to_check}': {'available' if sciper_available else 'not available'}"
+                    f"Sciper check for '{sciper_to_check}': available"
                 )
             except Exception as e:
                 logger.error(f"Error sending sciper check response: {e}")
 
-        return sciper_available
+        return True
 
     def handle_new_client(self, message, addr):
         """Handle new client connection"""
