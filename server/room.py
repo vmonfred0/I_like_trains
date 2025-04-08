@@ -534,11 +534,12 @@ class Room:
             # If the nickname is already use, we increment a counter
             chosen_agent_index = random.randint(0, len(self.config.agents) - 1)
             ai_agent_file_name = self.config.agents[chosen_agent_index].agent_file_name
+            ai_nickname = self.config.agents[chosen_agent_index].nickname
 
             attempt_for_nickname = 0
             nickname_already_in_use = True
             while nickname_already_in_use:
-                ai_nickname = f"AI_{attempt_for_nickname}"
+                ai_nickname = f"{ai_nickname}_{attempt_for_nickname}"
                 attempt_for_nickname += 1
                 if ai_nickname not in used_nicknames:
                     nickname_already_in_use = False
