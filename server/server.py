@@ -548,6 +548,20 @@ class Server:
         try:
             # Update client activity timestamp
 
+            if room is None:
+                # If room is None, we can't handle most messages
+                if message.get("action") == "check_name":
+                    self.handle_name_check(message, addr)
+                    return
+                
+                if message.get("action") == "check_sciper":
+                    self.handle_sciper_check(message, addr)
+                    return
+                
+                # For other message types, we need a valid room
+                logger.debug(f"Ignoring message from client {addr} as they are not in any room: {message}")
+                return
+                
             nickname = room.clients.get(addr)
             if message.get("action") == "check_name":
                 self.handle_name_check(message, addr)
