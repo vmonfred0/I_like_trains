@@ -32,7 +32,7 @@ class GameState:
                     # Update the modified attributes
                     self.client.trains[nickname].update(train_data)
 
-                if self.game_mode == GameMode.AGENT:
+                if self.game_mode == GameMode.AGENT and self.client.agent is not None:
                     self.client.agent.all_trains = self.client.trains
 
             # Handle renamed train
@@ -41,19 +41,19 @@ class GameState:
                 if old_name in self.client.trains:
                     logger.info(f"Renaming train {old_name} to {new_name}")
                     self.client.trains[new_name] = self.client.trains.pop(old_name)
-                    if self.game_mode == GameMode.AGENT:
+                    if self.game_mode == GameMode.AGENT and self.client.agent is not None:
                         self.client.agent.all_trains = self.client.trains
 
             if "passengers" in data:
                 # Adjust passenger positions to be in pixel coordinates
                 self.client.passengers = data["passengers"]
-                if self.game_mode == GameMode.AGENT:
+                if self.game_mode == GameMode.AGENT and self.client.agent is not None:
                     self.client.agent.passengers = self.client.passengers
 
             if "delivery_zone" in data:
                 # Update delivery zone
                 self.client.delivery_zone = data["delivery_zone"]
-                if self.game_mode == GameMode.AGENT:
+                if self.game_mode == GameMode.AGENT and self.client.agent is not None:
                     self.client.agent.delivery_zone = self.client.delivery_zone
 
             if "size" in data:
@@ -83,7 +83,7 @@ class GameState:
 
                     # Mark as initialized to prevent default window creation
                     self.client.is_initialized = True
-                    if self.game_mode == GameMode.AGENT:
+                    if self.game_mode == GameMode.AGENT and self.client.agent is not None:
                         self.client.agent.screen_width = self.client.screen_width
                         self.client.agent.screen_height = self.client.screen_height
 
@@ -93,11 +93,11 @@ class GameState:
             if "cell_size" in data:
                 self.client.cell_size = data["cell_size"]
                 logger.info(f"Cell size updated: {self.client.cell_size}")
-                if self.game_mode == GameMode.AGENT:
+                if self.game_mode == GameMode.AGENT and self.client.agent is not None:
                     self.client.agent.cell_size = self.client.cell_size
 
             # Update the agent's state
-            if self.game_mode == GameMode.AGENT:
+            if self.game_mode == GameMode.AGENT and self.client.agent is not None:
                 # Make sure any data not updated individually gets updated here
                 if self.client.agent.all_trains is None:
                     self.client.agent.all_trains = self.client.trains
@@ -171,17 +171,18 @@ class GameState:
                 return
 
             # Check if the agent is already dead
-            if self.client.agent.is_dead:
+            if self.client.agent is not None and self.client.agent.is_dead:
                 return
 
             # Log the cooldown
             logger.info(f"Train is dead. Cooldown: {data['remaining']}s")
 
             # Update the agent's cooldown data
-            self.client.agent.is_dead = True
-            self.client.agent.death_time = time.time()
-            self.client.agent.waiting_for_respawn = True
-            self.client.agent.respawn_cooldown = data.get("remaining", 0)
+            if self.client.agent is not None:
+                self.client.agent.is_dead = True
+                self.client.agent.death_time = time.time()
+                self.client.agent.waiting_for_respawn = True
+                self.client.agent.respawn_cooldown = data.get("remaining", 0)
         except Exception as e:
             logger.error("Error handling cooldown data: " + str(e))
 
