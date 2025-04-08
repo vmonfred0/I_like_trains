@@ -613,9 +613,7 @@ class Server:
             elif message.get("action") == "direction":
                 if nickname in room.game.trains and room.game.is_train_alive(nickname):
                     room.game.trains[nickname].change_direction(message["direction"])
-                # else:
-                #     logger.warning(f"Failed to change direction for train {nickname}")
-
+                    
             elif message.get("action") == "drop_wagon":
                 if nickname in room.game.trains and room.game.is_train_alive(nickname):
                     last_wagon_position = room.game.trains[nickname].drop_wagon()

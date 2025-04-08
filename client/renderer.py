@@ -398,7 +398,7 @@ class Renderer:
             )
             self.client.screen.blit(text, text_rect)
 
-        elif self.client.waiting_for_respawn and self.config.manual_spawn:
+        elif self.client.waiting_for_respawn and self.client.config.manual_spawn:
             # Display respawn message in center of screen
             font = pygame.font.Font(None, 28)
             text = font.render("Press SPACE to spawn", True, (0, 200, 0))
