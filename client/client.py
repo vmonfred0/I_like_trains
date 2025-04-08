@@ -28,7 +28,6 @@ class Client:
 
     def __init__(self, config: Config):
         """Initialize the client"""
-
         self.config = config.client
         self.game_mode = self.config.game_mode
 
@@ -108,11 +107,15 @@ class Client:
 
         # Initialize agent based on game mode
         self.agent = None
+
+        logger.debug("Initialized client")
+
         if self.game_mode != GameMode.OBSERVER:
+            logger.debug("Initializing agent")
             agent_info = self.config.agent
-            if agent_info and "agent_file_name" in agent_info:
-                logger.info(f"Loading agent: {agent_info['agent_file_name']}")
-                agent_file_name = agent_info["agent_file_name"]
+            if agent_info and hasattr(agent_info, "agent_file_name"):
+                logger.info(f"Loading agent: {agent_info.agent_file_name}")
+                agent_file_name = agent_info.agent_file_name
                 if agent_file_name.endswith(".py"):
                     # Remove .py extension
                     agent_file_name = agent_file_name[:-3]
@@ -121,15 +124,11 @@ class Client:
                 module_path = f"common.agents.{agent_file_name}"
                 logger.info(f"Importing module: {module_path}")
 
-                try:
-                    # Add parent directory to Python path to allow importing agents package
-                    module = importlib.import_module(module_path)
-                    self.nickname = agent_info["nickname"]
-                    # self.agent_sciper = agent_info["sciper"]
-                    self.agent = module.Agent(self.nickname, self.network)
-                except Exception as e:
-                    logger.error(f"Error importing agent module: {e}")
-                    raise e
+                # Add parent directory to Python path to allow importing agents package
+                module = importlib.import_module(module_path)
+                self.nickname = agent_info.nickname
+                # self.agent_sciper = agent_info["sciper"]
+                self.agent = module.Agent(self.nickname, self.network)
 
         self.ping_response_received = False
         self.server_disconnected = False
