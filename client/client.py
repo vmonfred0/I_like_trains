@@ -212,9 +212,21 @@ class Client:
             logger.error(f"Error creating login window: {e}")
             return
 
+        if self.game_mode == GameMode.AGENT:
+            nickname = self.config.agent.nickname
+            sciper = self.config.sciper
+        elif self.game_mode == GameMode.MANUAL:
+            nickname = self.config.manual.nickname
+            sciper = self.config.sciper
+        else:
+            nickname = ""
+            sciper = ""
+        
+        logger.debug(f"Sending agent ids: {nickname}, {sciper}, {self.game_mode.value}")
+
         if not self.network.send_agent_ids(
-            self.config.agent.nickname if self.game_mode == GameMode.AGENT else self.config.manual.nickname if self.game_mode == GameMode.MANUAL else "",
-            self.config.sciper if self.game_mode != GameMode.OBSERVER else "",
+            nickname,
+            sciper,
             self.game_mode.value
         ):
             logger.error("Failed to send agent ids to server")

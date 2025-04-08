@@ -363,6 +363,7 @@ class NetworkManager:
 
     def send_agent_ids(self, nickname, agent_sciper, game_mode):
         """Send agent name and sciper to server"""
+        logger.debug(f"Sending agent ids: {nickname}, {agent_sciper}, {game_mode}")
         message = {
             "type": "agent_ids",
             "nickname": nickname,
