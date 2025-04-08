@@ -234,6 +234,7 @@ class Game:
 
     def add_train(self, nickname):
         """Add a new train to the game"""
+        logger.debug(f"Adding train {nickname}")
         # Check the cooldown
         if nickname in self.dead_trains:
             elapsed = time.time() - self.dead_trains[nickname]

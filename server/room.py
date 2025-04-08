@@ -407,6 +407,7 @@ class Room:
                                 f"Waiting time expired for room {self.id}, adding bots and starting game"
                             )
                             self.fill_with_bots()
+                            self.add_all_trains()
                             self.start_game()
 
                     waiting_room_data = {
@@ -547,3 +548,33 @@ class Room:
             self.create_ai_for_train(
                 ai_nickname=ai_nickname, ai_agent_file_name=ai_agent_file_name
             )
+
+    def add_all_trains(self):
+        # Add trains for all the players
+        for nickname in self.get_players():
+            # Find the client address for this nickname
+            client_addr = None
+            for addr, name in self.clients.items():
+                if name == nickname:
+                    client_addr = addr
+                    break
+                    
+            if client_addr is None:
+                logger.warning(f"Could not find address for player {nickname}")
+                continue
+                
+            if self.game.add_train(nickname):
+                response = {"type": "spawn_success", "nickname": nickname}
+                self.server_socket.sendto(
+                    (json.dumps(response) + "\n").encode(), client_addr
+                )
+            else:
+                logger.warning(f"Failed to spawn train {nickname}")
+                # Inform the client of the failure
+                response = {
+                    "type": "respawn_failed",
+                    "message": "Failed to spawn train",
+                }
+                self.server_socket.sendto(
+                    (json.dumps(response) + "\n").encode(), client_addr
+                )
