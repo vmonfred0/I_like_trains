@@ -1,10 +1,11 @@
-from common.server_config import ServerConfig
-from server.game import Game
-import threading
-import time
 import json
 import logging
 import random
+import threading
+import time
+
+from common.server_config import ServerConfig
+from server.game import Game
 
 # Configure logger
 logger = logging.getLogger("server.room")
@@ -530,24 +531,17 @@ class Room:
         used_nicknames = set(self.clients.keys())
         for _ in range(nb_bots_needed):
             # We randomly chose an agent to use from agents in the config
-            # We create a new AI client with the chosen agent and increment the counter
-            # If the nickname is already use, we increment a counter
-            chosen_agent_index = random.randint(0, len(self.config.agents) - 1)
-            ai_agent_file_name = self.config.agents[chosen_agent_index].agent_file_name
-            ai_nickname = self.config.agents[chosen_agent_index].nickname
+            # To avoid nickname collision, we append random numbers.
+            agent = random.choice(self.config.agents)
 
-            attempt_for_nickname = 0
-            nickname_already_in_use = True
-            while nickname_already_in_use:
-                ai_nickname = f"{ai_nickname}_{attempt_for_nickname}"
-                attempt_for_nickname += 1
-                if ai_nickname not in used_nicknames:
-                    nickname_already_in_use = False
+            ai_nickname = agent.nickname
+            while ai_nickname in used_nicknames:
+                r = random.randint(1, 999)
+                ai_nickname = f"{agent.nickname}-{r}"
 
             used_nicknames.add(ai_nickname)
-
             self.create_ai_for_train(
-                ai_nickname=ai_nickname, ai_agent_file_name=ai_agent_file_name
+                ai_nickname=ai_nickname, ai_agent_file_name=agent.agent_file_name
             )
 
     def add_all_trains(self):
@@ -559,11 +553,11 @@ class Room:
                 if name == nickname:
                     client_addr = addr
                     break
-                    
+
             if client_addr is None:
                 logger.warning(f"Could not find address for player {nickname}")
                 continue
-                
+
             if self.game.add_train(nickname):
                 response = {"type": "spawn_success", "nickname": nickname}
                 self.server_socket.sendto(
