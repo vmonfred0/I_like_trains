@@ -297,6 +297,7 @@ class Train:
     def set_alive(self, alive):
         """Update train alive status"""
         if self.alive != alive:
+            logger.debug(f"Train {self.nickname} is dead: {not alive}")
             self.alive = alive
             self._dirty["alive"] = True
 

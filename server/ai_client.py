@@ -95,7 +95,7 @@ class AIClient:
 
                 module = importlib.import_module(module_path)
                 self.agent = module.Agent(
-                    nickname, self.network, logger="server.ai_agent", is_dead=False
+                    nickname, self.network, logger="server.ai_agent"
                 )
                 logger.info(
                     f"AI agent {nickname} initialized using {ai_agent_file_name}"
@@ -108,7 +108,7 @@ class AIClient:
                 logger.info(f"Trying to import AI agent for {nickname}")
                 module = importlib.import_module("common.agents.ai_agent")
                 self.agent = module.AI_agent(
-                    nickname, self.network, logger="server.ai_agent", is_dead=False
+                    nickname, self.network, logger="server.ai_agent"
                 )
                 logger.info(f"AI agent {nickname} initialized using AI_agent")
             except ImportError as e:
@@ -172,10 +172,10 @@ class AIClient:
             # Add automatic respawn logic
             if (
                 not self.game.trains[self.nickname].alive
-                and self.agent.waiting_for_respawn
+                and self.waiting_for_respawn
             ):
-                elapsed = time.time() - self.agent.death_time
-                if elapsed >= self.agent.respawn_cooldown:
+                elapsed = time.time() - self.death_time
+                if elapsed >= self.respawn_cooldown:
                     logger.debug(
                         f"AI client {self.nickname} respawn cooldown over, checking game state"
                     )
@@ -195,8 +195,8 @@ class AIClient:
                     cooldown = self.room.game.get_train_cooldown(self.nickname)
                     if cooldown <= 0:
                         self.room.game.add_train(self.nickname)
-                        self.agent.waiting_for_respawn = False
-                        self.agent.is_dead = False
+                        self.waiting_for_respawn = False
+                        self.is_dead = False
                         logger.info(f"AI client {self.nickname} respawned")
 
             # else:

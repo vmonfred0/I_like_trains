@@ -112,7 +112,8 @@ class GameState:
                 if self.client.agent.delivery_zone is None:
                     self.client.agent.delivery_zone = self.client.delivery_zone
 
-                self.client.agent.update_agent()
+                if not self.client.is_dead:
+                    self.client.agent.update_agent()
 
         except Exception as e:
             logger.error("Error handling state data: " + str(e))
@@ -171,18 +172,17 @@ class GameState:
                 return
 
             # Check if the agent is already dead
-            if self.client.agent is not None and self.client.agent.is_dead:
+            if self.client.is_dead:
                 return
 
             # Log the cooldown
             logger.info(f"Train is dead. Cooldown: {data['remaining']}s")
 
-            # Update the agent's cooldown data
-            if self.client.agent is not None:
-                self.client.agent.is_dead = True
-                self.client.agent.death_time = time.time()
-                self.client.agent.waiting_for_respawn = True
-                self.client.agent.respawn_cooldown = data.get("remaining", 0)
+            self.client.is_dead = True
+            self.client.death_time = time.time()
+
+            self.client.waiting_for_respawn = True
+            self.client.respawn_cooldown = data.get("remaining", 0)
         except Exception as e:
             logger.error("Error handling cooldown data: " + str(e))
 

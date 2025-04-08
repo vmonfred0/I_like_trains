@@ -183,8 +183,8 @@ class NetworkManager:
                                         self.client.handle_state_data(message_data["data"])
 
                                     elif message_type == "spawn_success":
-                                        self.client.agent.is_dead = False
-                                        self.client.agent.waiting_for_respawn = False
+                                        self.client.is_dead = False
+                                        self.client.waiting_for_respawn = False
 
                                     elif message_type == "game_started_success":
                                         logger.info("Game has started")
