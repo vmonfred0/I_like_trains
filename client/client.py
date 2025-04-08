@@ -40,6 +40,10 @@ class Client:
 
         # Initialize state variables
         self.running = True
+        self.is_dead = False
+        self.waiting_for_respawn = False
+        self.death_time = 0
+        self.respawn_cooldown = 0
         self.is_initialized = False
         self.in_waiting_room = True
         self.lock = threading.Lock()
@@ -241,19 +245,18 @@ class Client:
             # Handle any pending window updates in the main thread
             self.handle_window_updates()
 
-            # If no agent is set, skip the rest of the loop
-            if self.agent:
-                # Add automatic respawn logic
-                if (
-                    not self.config.manual_spawn
-                    and self.agent.is_dead
-                    and self.agent.waiting_for_respawn
-                    and not self.game_over
-                ):
-                    elapsed = time.time() - self.agent.death_time
-                    if elapsed >= self.agent.respawn_cooldown:
-                        self.network.send_spawn_request()
-
+            # Add automatic respawn logic
+            if (
+                not self.config.manual_spawn
+                and self.is_dead
+                and self.waiting_for_respawn
+                and not self.game_over
+            ):
+                elapsed = time.time() - self.death_time
+                if elapsed >= self.respawn_cooldown:
+                    logger.debug("Sending spawn request.")
+                    self.network.send_spawn_request()
+   
             self.renderer.draw_game()
 
             # Limit FPS
