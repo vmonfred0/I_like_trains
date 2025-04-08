@@ -107,8 +107,12 @@ class Client:
 
         # Initialize agent based on game mode
         self.agent = None
-
-        logger.debug("Initialized client")
+        
+        # Set nickname based on game mode
+        if self.game_mode == GameMode.MANUAL:
+            self.nickname = self.config.manual.nickname
+        elif self.game_mode == GameMode.AGENT:
+            self.nickname = self.config.agent.nickname
 
         if self.game_mode != GameMode.OBSERVER:
             logger.debug("Initializing agent")
@@ -126,7 +130,8 @@ class Client:
 
                 # Add parent directory to Python path to allow importing agents package
                 module = importlib.import_module(module_path)
-                self.nickname = agent_info.nickname
+                # Ne pas écraser le nickname déjà défini en fonction du mode
+                # self.nickname = agent_info.nickname
                 # self.agent_sciper = agent_info["sciper"]
                 self.agent = module.Agent(self.nickname, self.network)
 
