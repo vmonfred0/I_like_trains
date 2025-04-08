@@ -247,8 +247,6 @@ class Server:
                 logger.error(f"Error sending pong to {addr}: {e}")
                 return
 
-        logger.debug(f"Client {addr} sent message: {message}")
-        logger.debug(f"addr_to_sciper: {self.addr_to_sciper}")
         agent_sciper = self.addr_to_sciper.get(addr)
 
         if agent_sciper:

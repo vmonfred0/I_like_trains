@@ -75,6 +75,11 @@ class AIClient:
         self.game = room.game
         self.nickname = nickname  # The AI agent name
         self.nickname = nickname  # Use the AI name as the train name
+        
+        self.is_dead = False
+        self.waiting_for_respawn = False
+        self.death_time = 0
+        self.respawn_cooldown = 0
 
         # Create network interface
         self.network = AINetworkInterface(
@@ -167,7 +172,8 @@ class AIClient:
             self.agent.game_width = self.game_width
             self.agent.game_height = self.game_height
 
-            self.agent.update_agent()
+            if not self.is_dead:
+                self.agent.update_agent()
 
             # Add automatic respawn logic
             if (
