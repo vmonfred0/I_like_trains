@@ -148,13 +148,10 @@ class Client:
                 width = self.window_update_params["width"]
                 height = self.window_update_params["height"]
 
-                try:
-                    self.screen = pygame.display.set_mode(
-                        (width, height), pygame.RESIZABLE
-                    )
-                    pygame.display.set_caption("I Like Trains")
-                except Exception as e:
-                    logger.error(f"Error updating window: {e}")
+                self.screen = pygame.display.set_mode(
+                    (width, height), pygame.RESIZABLE
+                )
+                pygame.display.set_caption("I Like Trains")
 
                 self.window_needs_update = False
 
@@ -312,30 +309,27 @@ class Client:
 
         # Afficher un message à l'utilisateur si pygame est initialisé
         if hasattr(self, "renderer") and self.renderer and pygame.display.get_init():
-            try:
-                font = pygame.font.SysFont("Arial", 24)
-                text = font.render(
-                    "Server disconnected. Press any key to exit.", True, (255, 0, 0)
+            font = pygame.font.SysFont("Arial", 24)
+            text = font.render(
+                "Server disconnected. Press any key to exit.", True, (255, 0, 0)
+            )
+            text_rect = text.get_rect(
+                center=(
+                    self.config.screen_width // 2,
+                    self.config.screen_height // 2,
                 )
-                text_rect = text.get_rect(
-                    center=(
-                        self.config.screen_width // 2,
-                        self.config.screen_height // 2,
-                    )
-                )
-                self.renderer.screen.fill((0, 0, 0))
-                self.renderer.screen.blit(text, text_rect)
-                pygame.display.flip()
+            )
+            self.renderer.screen.fill((0, 0, 0))
+            self.renderer.screen.blit(text, text_rect)
+            pygame.display.flip()
 
-                # Attendre que l'utilisateur appuie sur une touche
-                waiting = True
-                while waiting:
-                    for event in pygame.event.get():
-                        if event.type == pygame.QUIT or event.type == pygame.KEYDOWN:
-                            waiting = False
-                    time.sleep(0.1)
-            except Exception as e:
-                logger.error(f"Error displaying disconnection message: {e}")
+            # Attendre que l'utilisateur appuie sur une touche
+            waiting = True
+            while waiting:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT or event.type == pygame.KEYDOWN:
+                        waiting = False
+                time.sleep(0.1)
 
         # Fermer proprement
         self.cleanup()

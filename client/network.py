@@ -73,28 +73,24 @@ class NetworkManager:
             logger.warning("Server disconnection detected. Stopping client.")
 
         if self.socket:
-            try:
-                # Envoyer un message à nous-même pour débloquer le recvfrom
-                if hasattr(self, "server_addr"):
-                    try:
-                        # Obtenir l'adresse locale du socket
-                        local_addr = self.socket.getsockname()
-                        # Envoyer un message vide à nous-même pour débloquer le recvfrom
-                        dummy_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                        dummy_socket.sendto(b"", local_addr)
-                        dummy_socket.close()
-                    except Exception as e:
-                        if "10049" in str(e):
-                            pass
-                        else:
-                            logger.debug(f"Error sending dummy packet: {e}")
+            # Envoyer un message à nous-même pour débloquer le recvfrom
+            if hasattr(self, "server_addr"):
+                try:
+                    # Obtenir l'adresse locale du socket
+                    local_addr = self.socket.getsockname()
+                    # Envoyer un message vide à nous-même pour débloquer le recvfrom
+                    dummy_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    dummy_socket.sendto(b"", local_addr)
+                    dummy_socket.close()
+                except Exception as e:
+                    if "10049" in str(e):
+                        pass
+                    else:
+                        logger.debug(f"Error sending dummy packet: {e}")
 
-                self.socket.close()
-                self.socket = None  # Set to None after closing
-                logger.info("UDP socket closed")
-            except Exception as e:
-                logger.error(f"Error closing UDP socket: {e}")
-                self.socket = None  # Still set to None even if there's an error
+            self.socket.close()
+            self.socket = None  # Set to None after closing
+            logger.info("UDP socket closed")
 
     def send_message(self, message):
         """Send message to server"""
