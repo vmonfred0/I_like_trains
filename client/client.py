@@ -151,7 +151,7 @@ class Client:
                 self.screen = pygame.display.set_mode(
                     (width, height), pygame.RESIZABLE
                 )
-                pygame.display.set_caption("I Like Trains")
+                pygame.display.set_caption(f"I Like Trains - {self.game_mode.value}")
 
                 self.window_needs_update = False
 
