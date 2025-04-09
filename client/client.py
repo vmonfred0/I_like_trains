@@ -208,15 +208,6 @@ class Client:
             pygame.quit()
             return
 
-        # Create a temporary window for player name
-        temp_width, temp_height = self.config.screen_width, self.config.screen_height
-        try:
-            self.screen = pygame.display.set_mode((temp_width, temp_height))
-            pygame.display.set_caption("I Like Trains - Login")
-        except Exception as e:
-            logger.error(f"Error creating login window: {e}")
-            return
-
         if self.game_mode == GameMode.AGENT:
             nickname = self.config.agent.nickname
             sciper = self.config.sciper

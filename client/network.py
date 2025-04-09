@@ -423,44 +423,6 @@ class NetworkManager:
         logger.debug(f"Received name check response: {self.client.name_check_result}")
         return self.client.name_check_result
 
-    def check_sciper_availability(self, sciper):
-        """Check if a sciper is available on the server
-
-        Returns True if sciper is available, False otherwise.
-        """
-        logger.info(f"Checking sciper availability for '{sciper}'")
-        # Reset check variables
-        self.client.sciper_check_received = False
-        self.client.sciper_check_result = False
-
-        # Send check request
-        message = {"action": "check_sciper", "agent_sciper": sciper}
-        success = self.send_message(message)
-
-        if not success:
-            logger.error(f"Failed to send sciper check request for '{sciper}'")
-            return False
-
-        # Wait for server response (with timeout)
-        timeout = 5.0  # 5 second timeout
-        start_time = time.time()
-
-        logger.debug(f"Waiting for response with timeout of {timeout} seconds...")
-
-        while (
-            not self.client.sciper_check_received and time.time() - start_time < timeout
-        ):
-            time.sleep(0.1)
-
-        if not self.client.sciper_check_received:
-            logger.warning(f"Timeout waiting for sciper check response for '{sciper}'")
-            return False
-
-        logger.debug(
-            f"Received sciper check response: {self.client.sciper_check_result}"
-        )
-        return self.client.sciper_check_result
-
     def send_direction_change(self, direction):
         """Send direction change to server"""
         message = {"action": "direction", "direction": direction}
