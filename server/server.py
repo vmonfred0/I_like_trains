@@ -8,7 +8,6 @@ import signal
 import random
 
 from common.config import Config
-from server.high_score import HighScore
 from server.passenger import Passenger
 from server.room import Room
 
@@ -57,10 +56,6 @@ class Server:
         self.config = config.server
         self.rooms = {}  # {room_id: Room}
         self.lock = threading.Lock()
-
-        self.high_score = HighScore()
-        self.high_score.load()
-        self.high_score.dump()
 
         host = self.config.host
 
@@ -119,6 +114,7 @@ class Server:
             running,
             self.server_socket,
             self.send_cooldown_notification,
+            self.remove_room
         )
 
         logger.info(f"Created new room {room_id} with {nb_players_per_room} clients")
@@ -274,34 +270,27 @@ class Server:
         except Exception as e:
             logger.error(f"Error sending disconnect request to {addr}: {e}")
 
-    def handle_high_scores_request(self, addr):
-        """Handle a request for high scores"""
-        # Sort scores in descending order
-        sorted_scores = sorted(
-            self.best_scores.items(), key=lambda x: x[1], reverse=True
-        )
-        top_scores = sorted_scores[:10]  # Get top 10 scores
+    # def handle_high_scores_request(self, addr):
+    #     """Handle a request for high scores"""
+    #     # Sort scores in descending order
+    #     sorted_scores = sorted(
+    #         self.high_score.get().items(), key=lambda x: x[1], reverse=True
+    #     )
+    #     top_scores = sorted_scores[:10]  # Get top 10 scores
 
-        # Create response
-        response = {
-            "type": "high_scores",
-            "scores": [
-                {"name": player, "score": score} for player, score in top_scores
-            ],
-        }
+    #     # Create response
+    #     response = {
+    #         "type": "high_scores",
+    #         "scores": [
+    #             {"sciper": sciper, "score": score} for sciper, score in top_scores
+    #         ],
+    #     }
 
-        try:
-            self.server_socket.sendto((json.dumps(response) + "\n").encode(), addr)
-            logger.info(f"Sent high scores to client at {addr}")
-        except Exception as e:
-            logger.error(f"Error sending high scores: {e}")
-
-    def get_best_scores(self, limit=10):
-        """Get the top scores from the scores file"""
-        sorted_scores = sorted(
-            self.best_scores.items(), key=lambda x: x[1], reverse=True
-        )
-        return sorted_scores[:limit]
+    #     try:
+    #         self.server_socket.sendto((json.dumps(response) + "\n").encode(), addr)
+    #         logger.info(f"Sent high scores to client at {addr}")
+    #     except Exception as e:
+    #         logger.error(f"Error sending high scores: {e}")
 
     def handle_name_check(self, message, addr):
         """Handle name check requests"""
@@ -352,7 +341,6 @@ class Server:
             logger.debug(f"Name '{name_to_check}' starts with 'Bot ', not available")
 
         if addr:
-            # Prepare the response with best score if available
             response = {"type": "name_check", "available": name_available}
 
             try:
@@ -390,7 +378,6 @@ class Server:
                 return False
 
         if addr:
-            # Prepare the response with best score if available
             response = {"type": "sciper_check", "available": True}
 
             try:

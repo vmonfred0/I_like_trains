@@ -45,12 +45,14 @@ class Room:
         running,
         server_socket,
         send_cooldown_notification,
+        remove_room
     ):
         self.config = config
         self.id = room_id
         self.nb_players_max = nb_players_max
         self.server_socket = server_socket
         send_cooldown_notification
+        self.remove_room = remove_room
 
         self.game = Game(config, send_cooldown_notification, self.nb_players_max)
         # TODO(alok): why not put room_id and server in Game's __init__ method?
@@ -287,24 +289,18 @@ class Room:
                     client_addr = addr
                     break
 
-            # Get the sciper associated with this client address
-            player_sciper = None
-            if client_addr and client_addr in self.addr_to_sciper:
-                player_sciper = self.addr_to_sciper[client_addr]
-
             final_scores.append({"name": nickname, "best_score": best_score})
 
-            # Update best score in the scores file if we have a valid sciper
-            if player_sciper:
-                if self.game.server.high_score.update(player_sciper, best_score):
-                    scores_updated = True
-                    logger.info(
-                        f"Updated best score for {nickname} (sciper: {player_sciper}): {best_score}"
-                    )
+            # Update best score in the scores file
+            if self.game.high_score_all_time.update(nickname, best_score):
+                scores_updated = True
+                logger.info(
+                    f"Updated best score for {nickname}: {best_score}"
+                )
 
         # Save scores if any were updated
         if scores_updated:
-            self.game.server.high_score.save()
+            self.game.high_score_all_time.save()
 
         # Sort scores in descending order
         final_scores.sort(key=lambda x: x["best_score"], reverse=True)
@@ -316,7 +312,7 @@ class Room:
                 "message": "Game is over. Time limit reached.",
                 "final_scores": final_scores,
                 "duration": self.config.game_duration_seconds,
-                "best_scores": self.game.server.high_score.get(),
+                "best_scores": self.game.high_score_all_time.get(),
             },
         }
 
@@ -352,6 +348,7 @@ class Room:
         close_thread = threading.Thread(target=close_room_after_delay)
         close_thread.daemon = True
         close_thread.start()
+    
 
     def is_full(self):
         nb_players = self.get_player_count()
