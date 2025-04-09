@@ -107,8 +107,9 @@ class Client:
 
         # Initialize agent based on game mode
         self.agent = None
-        
+
         # Set nickname based on game mode
+        self.nickname = ""
         if self.game_mode == GameMode.MANUAL:
             self.nickname = self.config.manual.nickname
         elif self.game_mode == GameMode.AGENT:
