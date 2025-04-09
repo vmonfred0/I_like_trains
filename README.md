@@ -11,7 +11,7 @@ to implement various strategies while avoiding collisions.
 
 Your objective will be to modify [common/agents/agent.py](/common/agents/agent.py) file and implement logic to control
 your train. You may add additional files to the directory but do not modify any existing files outside of [common/agents](/common/agents).
-You can make different versions of your agent by copying the [agent.py](/client/agent.py) file, renaming it and modifying it.
+You can make different versions of your agent by copying the [agent.py](/common/agents/agent.py) file, renaming it and modifying it.
 
 ## Setup Instructions
 
@@ -142,7 +142,7 @@ During the final evaluation:
 
 ## Game rules
 
-- The goal is to collect as many passengers (they will appear at random positions on the map), incrementing your number of wagons, and then deliver them to the delivery zone. The number above each passenger spot indicates how many passengers are at that location. You can find the list of passengers with `self.passengers` (in `client/agent.py`).
+- The goal is to collect as many passengers (they will appear at random positions on the map), incrementing your number of wagons, and then deliver them to the delivery zone. The number above each passenger spot indicates how many passengers are at that location. You can find the list of passengers with `self.passengers` (in your `common/agents/agent.py`).
 
 - The train cannot change its direction to the opposite, only to the left or right.
 
@@ -165,8 +165,8 @@ The server is responsible for managing client connections and game synchronizati
 The server files are included here so you can have a better understanding of how the management of the game works. 
 
 - `server.py` : Manages client connections and game synchronization.
-- `game.py` : Contains the main game logic.
-- `train.py` : Defines the Train class and its behaviors.
+- `game.py` : Contains the main game logic. Each train moves by self.cell_size each time the get_move() method is called.
+- `train.py` : Defines the Train class and its behaviors. 
 - `passenger.py` : Manages passenger logic.
 - `ai_client.py` : Manages AI clients (when a player disconnects).
 - `delivery_zone.py` : Manages delivery zones.
@@ -183,10 +183,10 @@ The client is responsible for managing the game display and user interactions. I
 - `agent.py` : Controls the train's behavior.
 - `ui.py` : Manages the user interface to enter train name and sciper.
 
-### 3. Agents (folder `agents/`)
-The agents are the files that control the behavior of the train. You can find the implementation of the `BaseAgent` class in `client/base_agent.py`. 
+### 3. Agents (folder `common/agents/`)
+The agents are the files that control the behavior of the train. You can find the implementation of the `BaseAgent` class in `common/base_agent.py`. 
 
-The agents are stored in the `agents` folder. You can add your own agent by creating a new file in this folder. The agent file should contain a class that inherits from the `BaseAgent` class and implements the `get_move()` method. You can name them as you want and import them in the config to test them.
+The agents are stored in the `common/agents` folder. You can add your own agent by creating a new file in this folder. The agent file should contain a class that inherits from the `BaseAgent` class and implements the `get_move()` method. You can name them as you want and import them in the config to test them.
 
 ### How the client data is updated from the server
 
@@ -201,7 +201,7 @@ The agents are stored in the `agents` folder. You can add your own agent by crea
 
 ### Agent class
 
-The Agent class inherits from the `BaseAgent` class. You can find the implementation of the `BaseAgent` class in `client/base_agent.py`. 
+The Agent class inherits from the `BaseAgent` class. You can find the implementation of the `BaseAgent` class in `common/base_agent.py`. 
 The class is initialized with the following parameters:
 
 - `self.nickname` : The name of the agent.
@@ -238,7 +238,7 @@ def get_move(self):
     """
 ```
 
-- Your train exists in a 2D grid. You can tell your train to turn left, right, or continue going straight. Your code should live in [agents/agent.py](/agents/agent.py) and any additional files you might need. You can also instruct your train to drop wagons.
+- Your train exists in a 2D grid. You can tell your train to turn left, right, or continue going straight. Your code should live in [common/agents/agent.py](/common/agents/agent.py) and any additional files you might need. You can also instruct your train to drop wagons.
 
 - Your train can drop wagons. The train will then get a speed boost and enter a boost cooldown period, during which the train cannot drop wagons. Remember, passengers are automatically dropped off in the delivery zone.
 
