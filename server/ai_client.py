@@ -86,33 +86,30 @@ class AIClient:
         )  # Use AI name for network interface
 
         # Initialize agent if path_to_agent is provided
-        if ai_agent_file_name:
-            try:
-                logger.info(f"Trying to import AI agent for {nickname}")
-                if ai_agent_file_name.endswith(".py"):
-                    # Remove .py extension
-                    ai_agent_file_name = ai_agent_file_name[:-3]
+        try:
+            logger.info(f"Trying to import AI agent for {nickname}")
+            if ai_agent_file_name.endswith(".py"):
+                # Remove .py extension
+                ai_agent_file_name = ai_agent_file_name[:-3]
 
-                # Construct the module path correctly
-                module_path = f"common.agents.{ai_agent_file_name}"
-                logger.info(f"Importing module: {module_path}")
+            # Construct the module path correctly
+            module_path = f"common.agents.{ai_agent_file_name}"
+            logger.info(f"Importing module: {module_path}")
 
-                module = importlib.import_module(module_path)
-                self.agent = module.Agent(
-                    nickname, self.network, logger="server.ai_agent"
-                )
-                logger.info(
-                    f"AI agent {nickname} initialized using {ai_agent_file_name}"
-                )
-                    
-            except ImportError as e:
-                logger.error(f"Failed to import AI agent for {nickname}: {e}")
-                raise e
-            except Exception as e:
-                logger.error(f"Failed to import AI agent for {nickname}: {e}")
-                raise e
-        else:
-            raise ValueError(f"No agent file provided for {nickname}")
+            module = importlib.import_module(module_path)
+            self.agent = module.Agent(
+                nickname, self.network, logger="server.ai_agent"
+            )
+            logger.info(
+                f"AI agent {nickname} initialized using {ai_agent_file_name}"
+            )
+                
+        except ImportError as e:
+            logger.error(f"Failed to import AI agent for {nickname}: {e}")
+            raise e
+        except Exception as e:
+            logger.error(f"Failed to import AI agent for {nickname}: {e}")
+            raise e
             
         self.agent.delivery_zone = self.game.delivery_zone.to_dict()
 
