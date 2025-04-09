@@ -18,7 +18,7 @@ class GameState:
 
     def handle_state_data(self, data):
         """Handle game state data received from the server"""
-        
+
         if not isinstance(data, dict):
             logger.warning("Received non-dictionary state data: " + str(data))
             return
@@ -59,7 +59,7 @@ class GameState:
         if "size" in data:
             self.client.game_width = data["size"]["game_width"]
             self.client.game_height = data["size"]["game_height"]
-            
+
             # Recalculate screen dimensions
             self.client.screen_width = (
                 self.client.leaderboard_width

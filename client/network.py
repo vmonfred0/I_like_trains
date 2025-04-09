@@ -43,10 +43,12 @@ class NetworkManager:
             self.socket.bind(("0.0.0.0", 0))
             # Store server address for sending
             self.server_addr = (self.host, self.port)
-            
+
             # Log successful connection with local client port information
             local_ip, local_port = self.socket.getsockname()
-            logger.info(f"Successfully connected to server at {self.host}:{self.port} from local {local_ip}:{local_port}")
+            logger.info(
+                f"Successfully connected to server at {self.host}:{self.port} from local {local_ip}:{local_port}"
+            )
 
             self.last_ping_time = time.time()
 
@@ -167,20 +169,22 @@ class NetworkManager:
                         # Check if the message contains multiple JSON objects
                         message_str = message
                         messages = message_str.split("\n")
-                        
+
                         for msg in messages:
                             if not msg.strip():
                                 continue  # Skip empty messages
-                                
+
                             try:
                                 message_data = json.loads(msg)
-                                
+
                                 # Process the message based on its type
                                 if "type" in message_data:
                                     message_type = message_data["type"]
 
                                     if message_type == "state":
-                                        self.client.handle_state_data(message_data["data"])
+                                        self.client.handle_state_data(
+                                            message_data["data"]
+                                        )
 
                                     elif message_type == "spawn_success":
                                         self.client.is_dead = False
@@ -206,7 +210,9 @@ class NetworkManager:
                                         logger.debug("Received join success response")
 
                                     elif message_type == "drop_wagon_success":
-                                        self.client.handle_drop_wagon_success(message_data)
+                                        self.client.handle_drop_wagon_success(
+                                            message_data
+                                        )
                                     elif message_type == "drop_wagon_failed":
                                         pass
 
@@ -224,14 +230,14 @@ class NetworkManager:
                                         logger.debug(
                                             f"Name available: {message_data['available']}"
                                         )
-                                        self.client.name_check_result = message_data.get(
-                                            "available", False
+                                        self.client.name_check_result = (
+                                            message_data.get("available", False)
                                         )
                                         self.client.name_check_received = True
 
                                     elif message_type == "sciper_check":
-                                        self.client.sciper_check_result = message_data.get(
-                                            "available", False
+                                        self.client.sciper_check_result = (
+                                            message_data.get("available", False)
                                         )
                                         self.client.sciper_check_received = True
                                         logger.debug(
@@ -254,8 +260,12 @@ class NetworkManager:
                                         return
 
                                     elif message_type == "game_over":
-                                        logger.info("Game is over. Received final scores.")
-                                        self.client.handle_game_over(message_data["data"])
+                                        logger.info(
+                                            "Game is over. Received final scores."
+                                        )
+                                        self.client.handle_game_over(
+                                            message_data["data"]
+                                        )
 
                                         # Disconnect from server after a short delay
                                         def disconnect_after_delay():
@@ -279,11 +289,17 @@ class NetworkManager:
                                         )
 
                                     elif message_type == "initial_state":
-                                        self.client.handle_initial_state(message_data["data"])
+                                        self.client.handle_initial_state(
+                                            message_data["data"]
+                                        )
                                     else:
-                                        logger.warning(f"Unknown message type: {message_type}")
+                                        logger.warning(
+                                            f"Unknown message type: {message_type}"
+                                        )
                             except json.JSONDecodeError as e:
-                                logger.error(f"Failed to parse message as JSON: {msg} - {e}")
+                                logger.error(
+                                    f"Failed to parse message as JSON: {msg} - {e}"
+                                )
                             except Exception as e:
                                 logger.error(f"Error handling message: {e}")
                     except json.JSONDecodeError:

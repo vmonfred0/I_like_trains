@@ -34,5 +34,3 @@ class Config(BaseModel):
                     f"Failed to parse {filename}, check your changes.", file=sys.stderr
                 )
                 raise e
-
-

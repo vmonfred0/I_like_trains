@@ -226,14 +226,10 @@ class Client:
         else:
             nickname = ""
             sciper = ""
-        
+
         logger.debug(f"Sending agent ids: {nickname}, {sciper}, {self.game_mode.value}")
 
-        if not self.network.send_agent_ids(
-            nickname,
-            sciper,
-            self.game_mode.value
-        ):
+        if not self.network.send_agent_ids(nickname, sciper, self.game_mode.value):
             logger.error("Failed to send agent ids to server")
             return
 
@@ -257,7 +253,7 @@ class Client:
                 if elapsed >= self.respawn_cooldown:
                     logger.debug("Sending spawn request.")
                     self.network.send_spawn_request()
-   
+
             self.renderer.draw_game()
 
             # Limit FPS

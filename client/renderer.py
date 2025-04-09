@@ -62,7 +62,11 @@ class Renderer:
                             self.client.screen,
                             grid_color,
                             (x, self.client.game_screen_padding),
-                            (x, self.client.game_height + self.client.game_screen_padding),
+                            (
+                                x,
+                                self.client.game_height
+                                + self.client.game_screen_padding,
+                            ),
                             1,
                         )
                     for y in range(
@@ -74,7 +78,11 @@ class Renderer:
                             self.client.screen,
                             grid_color,
                             (self.client.game_screen_padding, y),
-                            (self.client.game_width + self.client.game_screen_padding, y),
+                            (
+                                self.client.game_width
+                                + self.client.game_screen_padding,
+                                y,
+                            ),
                             1,
                         )
 
@@ -119,12 +127,13 @@ class Renderer:
                     self.draw_death_screen()
                 except Exception as e:
                     logger.error("Error drawing death screen: " + str(e))
-                
+
             # Update display
             pygame.display.flip()
         except Exception as e:
             logger.error("Error drawing game: " + str(e))
             import traceback
+
             logger.error(traceback.format_exc())
 
     def draw_delivery_zone(self):
@@ -543,9 +552,7 @@ class Renderer:
 
                 # If train not found, add it
                 if not train_found:
-                    self.sorted_trains.append(
-                        (nickname, current_score, current_score)
-                    )
+                    self.sorted_trains.append((nickname, current_score, current_score))
 
             # Sort by best score in descending order
             self.sorted_trains.sort(key=lambda x: x[1], reverse=True)
@@ -579,13 +586,13 @@ class Renderer:
                             (220, 220, 255),  # Light blue background
                             pygame.Rect(
                                 self.client.game_width
-                            + 2 * self.client.game_screen_padding
-                            + 5,
-                            y_offset - 2,
-                            self.client.leaderboard_width - 10,
-                            20,
-                        ),
-                    )
+                                + 2 * self.client.game_screen_padding
+                                + 5,
+                                y_offset - 2,
+                                self.client.leaderboard_width - 10,
+                                20,
+                            ),
+                        )
 
                 # Get train color
                 train_color = (0, 0, 0)  # Default color

@@ -39,10 +39,7 @@ class EventHandler:
 
                 # If the agent is dead and the space key is pressed, request a respawn
                 if event.key == pygame.K_SPACE:
-                    if (
-                        self.client.is_dead
-                        and self.client.waiting_for_respawn
-                    ):
+                    if self.client.is_dead and self.client.waiting_for_respawn:
                         # Set waiting for respawn explicitly when sending request
                         result = self.client.network.send_spawn_request()
                         if result:
