@@ -179,8 +179,6 @@ The client is responsible for managing the game display and user interactions. I
 - `renderer.py` : Responsible for the graphical display of the game.
 - `event_handler.py` : Manages events (keyboard inputs).
 - `game_state.py` : Maintains the game state on the client side.
-- `base_agent.py` : Defines the base agent class.
-- `agent.py` : Controls the train's behavior.
 - `ui.py` : Manages the user interface to enter train name and sciper.
 
 ### 3. Agents (folder `common/agents/`)
