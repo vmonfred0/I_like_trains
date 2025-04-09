@@ -142,6 +142,7 @@ class Room:
                 return name
 
         # If all names are used, create a generic name with a random number
+        logger.debug("All AI names are used, creating a generic name")
         generic_name = f"Bot {random.randint(1000, 9999)}"
         self.used_ai_names.add(generic_name)
         return generic_name
@@ -150,12 +151,6 @@ class Room:
         self, train_nickname_to_replace=None, ai_nickname=None, ai_agent_file_name=None
     ):
         """Create an AI client to control a train"""
-        if ai_nickname is None:
-            ai_nickname = self.get_available_ai_name()
-
-        if ai_agent_file_name is None:
-            logger.debug(f"Using default agent file: {self.config.agent_file_name}")
-            ai_agent_file_name = self.config.agent_file_name
 
         # Choose an AI name that's not already in use
         if train_nickname_to_replace is None:
@@ -539,13 +534,20 @@ class Room:
         used_nicknames = set(self.clients.keys())
         for agent in agents:
             ai_nickname = agent.nickname
+            ai_agent_file_name = agent.agent_file_name
+
+            if ai_nickname is None or ai_nickname == "":
+                ai_nickname = self.get_available_ai_name()
+                logger.debug(f"Using base_agent for AI {ai_nickname} as no agent nickname was provided")
+
+            # If the nickname is already used, generate a new one
             while ai_nickname in used_nicknames:
                 r = random.randint(1, 999)
-                ai_nickname = f"{agent.nickname}-{r}"
+                ai_nickname = f"{ai_nickname}-{r}"
 
             used_nicknames.add(ai_nickname)
             self.create_ai_for_train(
-                ai_nickname=ai_nickname, ai_agent_file_name=agent.agent_file_name
+                ai_nickname=ai_nickname, ai_agent_file_name=ai_agent_file_name
             )
 
     def add_all_trains(self):

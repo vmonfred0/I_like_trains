@@ -60,6 +60,7 @@ class BaseAgent:
         Returning from this method without doing anything will cause the train to continue moving forward.
         """
         new_direction = self.get_move()
+            
         if new_direction not in move.Move:
             logging.error("get_move() did not return a valid move!")
             return
