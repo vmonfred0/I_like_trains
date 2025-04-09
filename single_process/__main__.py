@@ -18,10 +18,6 @@ def main():
         config_file = sys.argv[1]
     config = Config.load(config_file)
 
-    # Override clients_per_room. The alternative would be to launch clients_per_room clients
-    # but that might be too chaotic
-    config.server.nb_clients_per_room = 1
-
     # Enables setting breakpoints and resuming the runtime without considering the client as disconnected
     config.server.client_timeout_seconds = 86400  # 86400 seconds == 1 day
     config.client.server_timeout_seconds = 86400  # 86400 seconds == 1 day
