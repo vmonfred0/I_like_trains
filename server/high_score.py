@@ -24,24 +24,28 @@ class HighScore:
         self.lock = threading.Lock()
         self.scores = dict()
 
-    def update(self, sciper, score):
+    def update(self, nickname, score):
         """
-        Updates the sciper's high score.
+        Updates the nickname's high score.
         Returns True if the score is a new high score.
         """
         with self.lock:
-            if sciper in self.scores:
-                if score > self.scores[sciper]:
-                    self.scores[sciper] = score
+            if nickname in self.scores:
+                if score > self.scores[nickname]:
+                    self.scores[nickname] = score
                     return True
             else:
-                self.scores[sciper] = score
+                self.scores[nickname] = score
                 return True
             return False
 
     def get(self):
         with self.lock:
             return copy.copy(self.scores)
+
+    def get_from_nickname(self, nickname):
+        with self.lock:
+            return self.scores.get(nickname, 0)
 
     def dump(self, limit=10):
         """

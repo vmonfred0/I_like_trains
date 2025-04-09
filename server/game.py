@@ -11,6 +11,7 @@ from server.train import Train
 from server.passenger import Passenger
 import logging
 from server.delivery_zone import DeliveryZone
+from server.high_score import HighScore
 
 
 # Use the logger configured in server.py
@@ -51,28 +52,39 @@ class Game:
     # TODO(alok): remove nb_players and use config.clients_per_room
     def __init__(self, config: ServerConfig, send_cooldown_notification, nb_players):
         self.config = config
+
         self.send_cooldown_notification = send_cooldown_notification
+
         self.game_width = ORIGINAL_GAME_WIDTH
         self.game_height = ORIGINAL_GAME_HEIGHT
         self.new_game_width = self.game_width
         self.new_game_height = self.game_height
         self.cell_size = CELL_SIZE
+
         self.running = True
         self.delivery_zone = DeliveryZone(
             self.game_width, self.game_height, self.cell_size, nb_players
         )
+
         self.trains = {}
         self.ai_clients = {}
         self.best_scores = {}
         self.train_colors = {}  # {nickname: (train_color, wagon_color)}
         self.passengers = []
-        self.desired_passengers = 0
         self.dead_trains = {}  # {nickname: death_time}
+
+        self.desired_passengers = 0
+
         self.lock = threading.Lock()
         self.last_update = time.time()
+
+        self.high_score_all_time = HighScore()
+        self.high_score_all_time.load() 
+        self.high_score_all_time.dump()
+
         self.game_started = False  # Track if game has started
-        # Dictionary to track last delivery time for each train
         self.last_delivery_times = {}  # {nickname: last_delivery_time}
+
         # Dirty flags for the game
         self._dirty = {
             "trains": True,
