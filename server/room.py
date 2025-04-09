@@ -523,22 +523,24 @@ class Room:
 
     def fill_with_bots(self):
         """Fill the room with bots and start the game"""
-        logger.debug(f"Filling room {self.id} with bots")
         current_players = self.get_player_count()
         nb_bots_needed = self.nb_players_max - current_players
-
         if nb_bots_needed <= 0:
             return
 
         logger.info(f"Adding {nb_bots_needed} bots to room {self.id}")
 
-        # Add bots to the room
-        used_nicknames = set(self.clients.keys())
-        for _ in range(nb_bots_needed):
-            # We randomly chose an agent to use from agents in the config
-            # To avoid nickname collision, we append random numbers.
-            agent = random.choice(self.config.agents)
+        # If we need less bots or an equal number to the available list, we pick the bots
+        # randomly (without repetition).
+        # If we need more, we pick each one at least once.
+        agents = self.config.agents[:]
+        random.shuffle(agents)
+        while len(agents) < nb_bots_needed:
+            agents.append(random.choice(self.config.agents))
+        agents = agents[:nb_bots_needed]
 
+        used_nicknames = set(self.clients.keys())
+        for agent in agents:
             ai_nickname = agent.nickname
             while ai_nickname in used_nicknames:
                 r = random.randint(1, 999)
