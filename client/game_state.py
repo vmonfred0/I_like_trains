@@ -116,112 +116,93 @@ class GameState:
     def handle_leaderboard_data(self, data):
         """Handle leaderboard data received from the server"""
         logger.info("Received leaderboard data")
-        try:
-            # Check if data is a string and try to parse it as JSON
-            if isinstance(data, str):
-                try:
-                    data = json.loads(data)
-                except json.JSONDecodeError:
-                    logger.error(
-                        "Failed to parse leaderboard data as JSON: " + str(data)
-                    )
-                    return
-
-            # Check that data is a list
-            if not isinstance(data, list):
-                logger.error("Leaderboard data is not a list: " + str(type(data)))
+        # Check if data is a string and try to parse it as JSON
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except json.JSONDecodeError:
+                logger.error(
+                    "Failed to parse leaderboard data as JSON: " + str(data)
+                )
                 return
 
-            # Update leaderboard data
-            self.client.leaderboard_data = data
+        # Check that data is a list
+        if not isinstance(data, list):
+            logger.error("Leaderboard data is not a list: " + str(type(data)))
+            return
 
-            # Display the leaderboard in a separate window only if explicitly requested
-            if (
-                hasattr(self.client, "show_separate_leaderboard")
-                and self.client.show_separate_leaderboard
-            ):
-                self.client.renderer.show_leaderboard_window(data)
-        except Exception as e:
-            logger.error("Error handling leaderboard data: " + str(e))
+        # Update leaderboard data
+        self.client.leaderboard_data = data
+
+        # Display the leaderboard in a separate window only if explicitly requested
+        if (
+            hasattr(self.client, "show_separate_leaderboard")
+            and self.client.show_separate_leaderboard
+        ):
+            self.client.renderer.show_leaderboard_window(data)
 
     def handle_waiting_room_data(self, data):
         """Handle waiting room data received from the server"""
-        try:
-            if not isinstance(data, dict):
-                logger.error("Waiting room data is not a dictionary: " + str(data))
-                return
+        if not isinstance(data, dict):
+            logger.error("Waiting room data is not a dictionary: " + str(data))
+            return
 
-            # Update waiting room data
-            self.client.waiting_room_data = data
+        # Update waiting room data
+        self.client.waiting_room_data = data
 
-            self.client.leaderboard_height = data.get("nb_players") * 10
-
-        except Exception as e:
-            logger.error("Error handling waiting room data: " + str(e))
+        self.client.leaderboard_height = data.get("nb_players") * 10
 
     def handle_death(self, data):
         """Handle cooldown data received from the server"""
-        try:
-            if not isinstance(data, dict):
-                logger.error("Cooldown data is not a dictionary: " + str(data))
-                return
+        if not isinstance(data, dict):
+            logger.error("Cooldown data is not a dictionary: " + str(data))
+            return
 
-            # Check if the agent is already dead
-            if self.client.is_dead:
-                return
+        # Check if the agent is already dead
+        if self.client.is_dead:
+            return
 
-            # Log the cooldown
-            logger.info(f"Train is dead. Cooldown: {data['remaining']}s")
+        # Log the cooldown
+        logger.info(f"Train is dead. Cooldown: {data['remaining']}s")
 
-            self.client.is_dead = True
-            self.client.death_time = time.time()
+        self.client.is_dead = True
+        self.client.death_time = time.time()
 
-            self.client.waiting_for_respawn = True
-            self.client.respawn_cooldown = data.get("remaining", 0)
-        except Exception as e:
-            logger.error("Error handling cooldown data: " + str(e))
+        self.client.waiting_for_respawn = True
+        self.client.respawn_cooldown = data.get("remaining", 0)
 
     def handle_game_status(self, data):
         """Gère la réception du statut du jeu"""
-        try:
-            game_started = data.get("game_started", False)
-            if game_started:
-                self.client.in_waiting_room = False
-                logger.info("Game already started - joining ongoing game")
-            else:
-                self.client.in_waiting_room = True
-                logger.info("Game not started - entering waiting room")
-        except Exception as e:
-            logger.error("Error handling game status: " + str(e))
+        game_started = data.get("game_started", False)
+        if game_started:
+            self.client.in_waiting_room = False
+            logger.info("Game already started - joining ongoing game")
+        else:
+            self.client.in_waiting_room = True
+            logger.info("Game not started - entering waiting room")
 
     def handle_server_message(self, message):
         """Gère les messages reçus du serveur"""
-        try:
-            data = json.loads(message)
-            message_type = data.get("type")
+        data = json.loads(message)
+        message_type = data.get("type")
 
-            if message_type == "waiting_room":
-                self.handle_waiting_room_data(data)
-            elif message_type == "game_status":
-                self.handle_game_status(data)
-            elif message_type == "game_over":
-                self.handle_game_over(data)
-            else:
-                logger.warning("Unknown message type received: " + str(message_type))
-        except Exception as e:
-            logger.error("Error handling server message: " + str(e))
+        if message_type == "waiting_room":
+            self.handle_waiting_room_data(data)
+        elif message_type == "game_status":
+            self.handle_game_status(data)
+        elif message_type == "game_over":
+            self.handle_game_over(data)
+        else:
+            logger.warning("Unknown message type received: " + str(message_type))
 
     def handle_drop_wagon_success(self, message):
         """Handle successful passenger drop response from server"""
-        try:
-            nickname = message.get("nickname", "")
-            position = message.get("position", None)
+        nickname = message.get("nickname", "")
+        position = message.get("position", None)
 
-            if nickname == self.client.agent.nickname:
-                logger.info(f"Successfully dropped a passenger at position {position}")
-                # The train state will be updated in the next state update
-        except Exception as e:
-            logger.error(f"Error handling drop passenger success: {e}")
+        if nickname == self.client.agent.nickname:
+            logger.info(f"Successfully dropped a passenger at position {position}")
+            # The train state will be updated in the next state update
 
     def handle_game_over(self, data):
         """Handle game over data received from the server"""

@@ -73,28 +73,24 @@ class NetworkManager:
             logger.warning("Server disconnection detected. Stopping client.")
 
         if self.socket:
-            try:
-                # Envoyer un message à nous-même pour débloquer le recvfrom
-                if hasattr(self, "server_addr"):
-                    try:
-                        # Obtenir l'adresse locale du socket
-                        local_addr = self.socket.getsockname()
-                        # Envoyer un message vide à nous-même pour débloquer le recvfrom
-                        dummy_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                        dummy_socket.sendto(b"", local_addr)
-                        dummy_socket.close()
-                    except Exception as e:
-                        if "10049" in str(e):
-                            pass
-                        else:
-                            logger.debug(f"Error sending dummy packet: {e}")
+            # Envoyer un message à nous-même pour débloquer le recvfrom
+            if hasattr(self, "server_addr"):
+                try:
+                    # Obtenir l'adresse locale du socket
+                    local_addr = self.socket.getsockname()
+                    # Envoyer un message vide à nous-même pour débloquer le recvfrom
+                    dummy_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    dummy_socket.sendto(b"", local_addr)
+                    dummy_socket.close()
+                except Exception as e:
+                    if "10049" in str(e):
+                        pass
+                    else:
+                        logger.debug(f"Error sending dummy packet: {e}")
 
-                self.socket.close()
-                self.socket = None  # Set to None after closing
-                logger.info("UDP socket closed")
-            except Exception as e:
-                logger.error(f"Error closing UDP socket: {e}")
-                self.socket = None  # Still set to None even if there's an error
+            self.socket.close()
+            self.socket = None  # Set to None after closing
+            logger.info("UDP socket closed")
 
     def send_message(self, message):
         """Send message to server"""
@@ -422,44 +418,6 @@ class NetworkManager:
 
         logger.debug(f"Received name check response: {self.client.name_check_result}")
         return self.client.name_check_result
-
-    def check_sciper_availability(self, sciper):
-        """Check if a sciper is available on the server
-
-        Returns True if sciper is available, False otherwise.
-        """
-        logger.info(f"Checking sciper availability for '{sciper}'")
-        # Reset check variables
-        self.client.sciper_check_received = False
-        self.client.sciper_check_result = False
-
-        # Send check request
-        message = {"action": "check_sciper", "agent_sciper": sciper}
-        success = self.send_message(message)
-
-        if not success:
-            logger.error(f"Failed to send sciper check request for '{sciper}'")
-            return False
-
-        # Wait for server response (with timeout)
-        timeout = 5.0  # 5 second timeout
-        start_time = time.time()
-
-        logger.debug(f"Waiting for response with timeout of {timeout} seconds...")
-
-        while (
-            not self.client.sciper_check_received and time.time() - start_time < timeout
-        ):
-            time.sleep(0.1)
-
-        if not self.client.sciper_check_received:
-            logger.warning(f"Timeout waiting for sciper check response for '{sciper}'")
-            return False
-
-        logger.debug(
-            f"Received sciper check response: {self.client.sciper_check_result}"
-        )
-        return self.client.sciper_check_result
 
     def send_direction_change(self, direction):
         """Send direction change to server"""

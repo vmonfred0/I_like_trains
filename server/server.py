@@ -165,7 +165,6 @@ class Server:
                         if not message_str:
                             continue
 
-                        # try: // TODO RESTORE
                         message = json.loads(message_str)
                         # Process the message
                         self.process_message(message, addr)
