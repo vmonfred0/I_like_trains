@@ -130,9 +130,6 @@ class Client:
 
                 # Add parent directory to Python path to allow importing agents package
                 module = importlib.import_module(module_path)
-                # Ne pas écraser le nickname déjà défini en fonction du mode
-                # self.nickname = agent_info.nickname
-                # self.agent_sciper = agent_info["sciper"]
                 self.agent = module.Agent(self.nickname, self.network)
 
         self.ping_response_received = False
