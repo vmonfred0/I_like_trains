@@ -221,9 +221,9 @@ class Renderer:
 
             # Draw main train
             color = train_color
-            if self.client.agent:
-                if nickname == self.client.nickname:
-                    color = (0, 0, 255)  # Blue for player's train
+            if nickname == self.client.nickname:
+                color = (0, 0, 255)  # Blue for player's train
+
             # Draw train with more elaborate shape
             pygame.draw.rect(
                 self.client.screen,
@@ -264,9 +264,8 @@ class Renderer:
                 wagon_x += self.client.game_screen_padding
                 wagon_y += self.client.game_screen_padding
                 wagon_color = train_wagon_color
-                if self.client.agent:
-                    if nickname == self.client.nickname:
-                        wagon_color = (50, 50, 200)  # Darker blue for player's wagons
+                if nickname == self.client.nickname:
+                    wagon_color = (50, 50, 200)  # Darker blue for player's wagons
 
                 pygame.draw.rect(
                     self.client.screen,
