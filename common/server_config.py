@@ -50,3 +50,4 @@ class ServerConfig(BaseModel):
 
     # Local agents configuration, add or remove agents you want to evaluate as needed
     agents: list[AgentConfig] = []
+

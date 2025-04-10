@@ -4,6 +4,7 @@ import time
 import threading
 import sys
 import importlib
+import random
 
 from client.network import NetworkManager
 from client.renderer import Renderer
@@ -112,8 +113,14 @@ class Client:
         self.nickname = ""
         if self.game_mode == GameMode.MANUAL:
             self.nickname = self.config.manual.nickname
+            self.sciper = self.config.sciper
         elif self.game_mode == GameMode.AGENT:
             self.nickname = self.config.agent.nickname
+            self.sciper = self.config.sciper
+
+        if self.config.add_suffix_to_nickname:
+            # Add random suffix
+            self.nickname += f"_{random.randint(0, 999999)}"
 
         if self.game_mode != GameMode.OBSERVER:
             logger.debug("Initializing agent")
@@ -149,9 +156,7 @@ class Client:
                 width = self.window_update_params["width"]
                 height = self.window_update_params["height"]
 
-                self.screen = pygame.display.set_mode(
-                    (width, height), pygame.RESIZABLE
-                )
+                self.screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)
                 pygame.display.set_caption(f"I Like Trains - {self.game_mode.value}")
 
                 self.window_needs_update = False
@@ -206,19 +211,13 @@ class Client:
             pygame.quit()
             return
 
-        if self.game_mode == GameMode.AGENT:
-            nickname = self.config.agent.nickname
-            sciper = self.config.sciper
-        elif self.game_mode == GameMode.MANUAL:
-            nickname = self.config.manual.nickname
-            sciper = self.config.sciper
-        else:
-            nickname = ""
-            sciper = ""
+        logger.debug(
+            f"Sending agent ids: {self.nickname}, {self.sciper}, {self.game_mode.value}"
+        )
 
-        logger.debug(f"Sending agent ids: {nickname}, {sciper}, {self.game_mode.value}")
-
-        if not self.network.send_agent_ids(nickname, sciper, self.game_mode.value):
+        if not self.network.send_agent_ids(
+            self.nickname, self.sciper, self.game_mode.value
+        ):
             logger.error("Failed to send agent ids to server")
             return
 
@@ -271,10 +270,6 @@ class Client:
     def handle_waiting_room_data(self, data):
         """Handle waiting room data received from server"""
         self.game_state.handle_waiting_room_data(data)
-
-    def handle_drop_wagon_success(self, data):
-        """Handle successful wagon drop response from server"""
-        self.game_state.handle_drop_wagon_success(data)
 
     def handle_game_over(self, data):
         """Handle game over data received from server"""

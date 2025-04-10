@@ -51,3 +51,7 @@ class ClientConfig(BaseModel):
 
     # Manual agent configuration
     manual: ManualConfig
+
+    # If True, the client will generate a random suffix for the nickname, allows you
+    # to have multiple clients with the same nickname in the config
+    add_suffix_to_nickname: bool = False

@@ -131,6 +131,7 @@ class Game:
 
         if trains_data:
             state["trains"] = trains_data
+            self._dirty["trains"] = False
 
         return state
 
