@@ -195,15 +195,6 @@ class GameState:
         else:
             logger.warning("Unknown message type received: " + str(message_type))
 
-    def handle_drop_wagon_success(self, message):
-        """Handle successful passenger drop response from server"""
-        nickname = message.get("nickname", "")
-        position = message.get("position", None)
-
-        if nickname == self.client.agent.nickname:
-            logger.info(f"Successfully dropped a passenger at position {position}")
-            # The train state will be updated in the next state update
-
     def handle_game_over(self, data):
         """Handle game over data received from the server"""
         try:

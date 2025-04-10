@@ -271,10 +271,6 @@ class Client:
         """Handle waiting room data received from server"""
         self.game_state.handle_waiting_room_data(data)
 
-    def handle_drop_wagon_success(self, data):
-        """Handle successful wagon drop response from server"""
-        self.game_state.handle_drop_wagon_success(data)
-
     def handle_game_over(self, data):
         """Handle game over data received from server"""
         self.game_state.handle_game_over(data)
