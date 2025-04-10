@@ -200,7 +200,7 @@ class Train:
         new_position = (new_x, new_y)
 
         # Check collisions and bounds
-        self.check_collisions(new_position, trains)
+        self.check_collisions_with_trains(new_position, trains)
         self.check_out_of_bounds(new_position, screen_width, screen_height)
 
         if not self.alive:
@@ -289,7 +289,7 @@ class Train:
             self.alive = alive
             self._dirty["alive"] = True
 
-    def check_collisions(self, new_position, all_trains):
+    def check_collisions_with_trains(self, new_position, all_trains):
         for wagon_pos in self.wagons:
             if new_position == wagon_pos:
                 collision_msg = (
