@@ -31,7 +31,8 @@ def setup_server_logger():
 
     # Configure the loggers of the sub-modules
     modules = [
-        "server.roomserver.game",
+        "server.room",
+        "server.game",
         "server.train",
         "server.passenger",
         "server.delivery_zone",
@@ -585,37 +586,16 @@ class Server:
 
             elif message.get("action") == "drop_wagon":
                 if nickname in room.game.trains and room.game.is_train_alive(nickname):
-                    last_wagon_position = room.game.trains[nickname].drop_wagon()
-                    if last_wagon_position:
+                    drop_result = room.game.trains[nickname].drop_wagon()
+
+                    if drop_result is not None:
+                        last_wagon_position = drop_result
                         # Create a new passenger at the position of the dropped wagon
                         new_passenger = Passenger(room.game)
                         new_passenger.position = last_wagon_position
                         new_passenger.value = 1
                         room.game.passengers.append(new_passenger)
                         room.game._dirty["passengers"] = True
-
-                        # Send a confirmation to the client
-                        response = {
-                            "type": "drop_wagon_success",
-                            "nickname": nickname,
-                            "position": last_wagon_position,
-                        }
-                        self.server_socket.sendto(
-                            (json.dumps(response) + "\n").encode(), addr
-                        )
-                    else:
-                        response = {
-                            "type": "drop_wagon_failed",
-                            "message": "Failed to drop wagon",
-                        }
-                        self.server_socket.sendto(
-                            (json.dumps(response) + "\n").encode(), addr
-                        )
-
-            # For high scores request
-            # if "type" in message and message["type"] == "high_scores":
-            #     self.handle_high_scores_request(addr)
-            #     return
 
         except Exception as e:
             logger.error(f"Error handling client message: {e}")

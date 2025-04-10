@@ -204,13 +204,7 @@ class NetworkManager:
 
                                     elif message_type == "join_success":
                                         logger.debug("Received join success response")
-
-                                    elif message_type == "drop_wagon_success":
-                                        self.client.handle_drop_wagon_success(
-                                            message_data
-                                        )
-                                    elif message_type == "drop_wagon_failed":
-                                        pass
+                                        
 
                                     elif message_type == "leaderboard":
                                         self.client.handle_leaderboard_data(

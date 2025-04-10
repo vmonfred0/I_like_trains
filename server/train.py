@@ -3,6 +3,7 @@ Train class for the game "I Like Trains"
 """
 
 import logging
+import time
 
 from common.move import Move
 
@@ -56,16 +57,14 @@ class Train:
             "score": True,
             "color": True,
             "alive": True,
-            "speed": True,
-            "speed_boost": True,
-            "boost_cooldown": True,
+            "boost_cooldown_active": True
         }
         self.client_logger = logging.getLogger("client.train")
         # Speed boost properties
         self.speed_boost_active = False
         self.speed_boost_timer = 0
         self.boost_cooldown_active = False
-        self.boost_cooldown_timer = 0
+        self.start_cooldown_time = 0
         self.normal_speed = INITIAL_SPEED  # Store normal speed for after boost ends
 
     def get_position(self):
@@ -98,19 +97,18 @@ class Train:
                 # Reset speed boost
                 self.speed_boost_active = False
                 self.speed = self.normal_speed
-                self._dirty["speed"] = True
-
-                # Start cooldown
-                self.boost_cooldown_active = True
-                self.boost_cooldown_timer = BOOST_COOLDOWN_DURATION
+                # self._dirty["speed"] = True
 
         # Manage boost cooldown timer
         if self.boost_cooldown_active:
-            self.boost_cooldown_timer -= 1 / self.tick_rate  # Decrement by seconds
-            if self.boost_cooldown_timer <= 0:
+            current_time = time.time()
+            elapsed_time = current_time - self.start_cooldown_time
+            if elapsed_time >= BOOST_COOLDOWN_DURATION + BOOST_DURATION:
+                logger.debug(f"Resetting cooldown for train {self.nickname}")
                 # Reset cooldown
                 self.boost_cooldown_active = False
-
+                self._dirty["boost_cooldown_active"] = True
+                
         # Increment movement timer
         self.move_timer += 1
 
@@ -152,7 +150,7 @@ class Train:
             ACTIVATE_SPEED_BOOST
             and not self.boost_cooldown_active
             and not self.speed_boost_active
-            and len(self.wagons) > 1
+            and len(self.wagons) > 0
         ):
             logger.debug(f"Applying speed boost to train {self.nickname}")
             # Get the last wagon position
@@ -167,7 +165,12 @@ class Train:
             self.speed *= BOOST_INTENSITY
             self.speed_boost_active = True
             self.speed_boost_timer = BOOST_DURATION  # 1 second boost
-            self._dirty["speed"] = True
+
+            # Start cooldown
+            logger.debug(f"Starting cooldown for train {self.nickname}")
+            self.boost_cooldown_active = True
+            self.start_cooldown_time = time.time()
+            self._dirty["boost_cooldown_active"] = True
 
             return last_wagon_pos
         else:
@@ -217,20 +220,6 @@ class Train:
         self.handle_death(self.nickname)
         self.reset()
 
-    def serialize(self):
-        """
-        Convert train state to a serializable format for sending to the client
-        """
-        return {
-            "position": self.position,
-            "wagons": self.wagons,
-            "direction": self.direction,
-            "score": self.score,
-            "color": self.color,
-            "alive": self.alive,
-            "speed": self.speed,
-        }
-
     def to_dict(self):
         """Convert train to dictionary, returning only modified data"""
         data = {}
@@ -267,10 +256,9 @@ class Train:
         if self._dirty["alive"]:
             data["alive"] = self.alive
             self._dirty["alive"] = False
-        if self._dirty["speed"]:
-            data["speed"] = self.speed
-            self._dirty["speed"] = False
-
+        if self._dirty["boost_cooldown_active"]:
+            data["boost_cooldown_active"] = self.boost_cooldown_active
+            self._dirty["boost_cooldown_active"] = False
         return data
 
     def set_position(self, new_position):
@@ -362,7 +350,5 @@ class Train:
             "score": True,
             "color": True,
             "alive": True,
-            "speed": True,
-            "speed_boost": True,
-            "boost_cooldown": True,
+            "boost_cooldown_active": True
         }
