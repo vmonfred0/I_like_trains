@@ -296,6 +296,20 @@ Some constants are available in the config.json file to customize your graphical
 - `screen_width`: width of the game window. 
 - `screen_height`: height of the game window.
 - `leaderboard_width`: width of the leaderboard.
+- `add_suffix_to_nickname`: whether to add a random suffix to the nickname.
+
+### Simulate Multiple Clients
+
+You can simulate multiple clients by running the `simulate_clients.ps1` script to open them automatically. 
+- You may want to modify the `add_suffix_to_nickname` parameter in the `config.json` to "true" to add a random suffix to your nickname every time a client is launched and therefore bypass the unique nickname check.
+- You may also want to modify the actual line `$scriptPath = "cd <path_to_I_like_trains-public>; .\venv\Scripts\activate; python -m client"` to point to the correct path of your folder.
+```bash
+# On windows
+.\simulate_clients.ps1 <number_of_clients> 
+
+# On linux and mac
+./simulate_clients.sh <number_of_clients> 
+```
 
 ### Logging System
 
