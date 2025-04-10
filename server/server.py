@@ -423,16 +423,11 @@ class Server:
             return
 
         logger.info(
-            f"\nNew client {nickname} (sciper: {agent_sciper}) connecting from {addr}"
+            f"New client {nickname} (sciper: {agent_sciper}) connecting from {addr}"
         )
 
         # Initialize client activity tracking
         self.client_last_activity[addr] = time.time()
-
-        # Log new client connection
-        logger.info(
-            f"New client {nickname} (sciper: {agent_sciper}) connecting from {addr}"
-        )
 
         # Check if this sciper was previously connected and clean up any old references
         if agent_sciper in self.sciper_to_addr:

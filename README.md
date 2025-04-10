@@ -296,6 +296,7 @@ Some constants are available in the config.json file to customize your graphical
 - `screen_width`: width of the game window. 
 - `screen_height`: height of the game window.
 - `leaderboard_width`: width of the leaderboard.
+- `add_suffix_to_nickname`: whether to add a random suffix to the nickname.
 
 ### Logging System
 
