@@ -25,14 +25,14 @@ class AINetworkInterface:
 
     def send_direction_change(self, direction):
         """Change the direction of the train using the server's function"""
-        if self.nickname in self.room.game.trains and self.room.game.contains_train(
+        if self.room.game.contains_train(
             self.nickname
         ):
             self.room.game.trains[self.nickname].change_direction(direction)
             return True
         else:
             logger.error(
-                f"Failed to change direction for train {self.nickname}. Train in room's trains: {self.nickname in self.room.game.trains}, is train alive: {self.room.game.contains_train(self.nickname)}"
+                f"Failed to change direction for train {self.nickname}. Train is in game: {self.nickname in self.room.game.trains}"
             )
         return False
 
@@ -158,7 +158,7 @@ class AIClient:
             self.agent.game_width = self.game_width
             self.agent.game_height = self.game_height
 
-            # Update agent state only if train is alive and train is alive
+            # Update agent state only if train is alive and game contains train
             if not self.is_dead and self.game.contains_train(self.nickname):
                 self.agent.update_agent()
 

@@ -220,7 +220,7 @@ class Game:
                     train
                     for train in self.trains.values()
                     if self.contains_train(train.nickname)
-                ]
+                ] # This is a list of all trains that are still alive in the game
             )
         ) // TRAINS_PASSENGER_RATIO
 
