@@ -28,13 +28,29 @@ class DeliveryZone:
             if random_increased_dimension == "height"
             else cell_size * initial_height
         )
-
+        logger.debug(f"Delivery zone dimensions: {self.width} x {self.height}")
+        logger.debug(f"Game dimensions: {game_width} x {game_height}")
+        logger.debug(f"Cell size: {cell_size}")
+        logger.debug(f"Number of players: {nb_players}")
+        logger.debug(f"x range: {game_width // cell_size - 1 - self.width // cell_size}")
+        
         self.x = cell_size * random.randint(
             0, (game_width // cell_size - 1 - self.width // cell_size)
         )
-        self.y = cell_size * random.randint(
-            0, (game_height // cell_size - 1 - self.height // cell_size)
+        
+        max_y_offset = (
+            (game_height // cell_size - 1 - self.height // cell_size)
         )
+        # Ensure the upper bound is not negative
+        upper_bound = max(0, max_y_offset)
+
+        self.y = cell_size * random.randint(0, upper_bound)
+
+        logger.debug(f"Delivery zone dimensions: {self.width} x {self.height}")
+        logger.debug(f"Game dimensions: {game_width} x {game_height}")
+        logger.debug(f"Cell size: {cell_size}")
+        logger.debug(f"Number of players: {nb_players}")
+        logger.debug(f"x range: {game_width // cell_size - 1 - self.width // cell_size}")
 
     def contains(self, position):
         x, y = position
