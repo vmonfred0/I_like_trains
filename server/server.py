@@ -519,8 +519,9 @@ class Server:
 
                 # For other message types, we need a valid room
                 logger.debug(
-                    f"Ignoring message from client {addr} as they are not in any room: {message}"
+                    f"Ignoring message from client {addr} as they are not in any room: {message}. Sending disconnect message"
                 )
+                self.handle_client_disconnection(addr, "Unknown client")
                 return
 
             nickname = room.clients.get(addr)
