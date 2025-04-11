@@ -70,6 +70,7 @@ class AIClient:
 
     def __init__(self, room, nickname, ai_agent_file_name=None, waiting_for_respawn=False, is_dead=False):
         """Initialize the AI client"""
+        logger.debug(f"Initializing AI client {nickname}, waiting_for_respawn: {waiting_for_respawn}, is_dead: {is_dead}")
         self.room = room
         self.game = room.game
         self.nickname = nickname  # The AI agent name
@@ -168,11 +169,12 @@ class AIClient:
                 self.is_dead
                 and self.waiting_for_respawn
             ):
+                # logger.debug(f"AI client {self.nickname} waiting for respawn")
                 elapsed = time.time() - self.death_time
                 if elapsed >= self.respawn_cooldown:
-                    logger.debug(
-                        f"AI client {self.nickname} respawn cooldown over, checking game state"
-                    )
+                    # logger.debug(
+                    #     f"AI client {self.nickname} respawn cooldown over, checking game state"
+                    # )
                     if self.in_waiting_room:
                         logger.debug(
                             f"AI client {self.nickname} in waiting room, trying to start game"
