@@ -490,31 +490,11 @@ class Renderer:
             self.sorted_trains = []
 
         # Get train data for leaderboard
-        for nickname, train_data in self.client.trains.items():
-            # Check if train is already in sorted_trains
-            train_found = False
-            current_score = train_data.get("score", 0)  # Get current score
-            for i, (existing_name, best_score, _) in enumerate(self.sorted_trains):
-                if existing_name == nickname:
-                    # Update best score if current score is higher
-                    if current_score > best_score:
-                        self.sorted_trains[i] = (
-                            nickname,
-                            current_score,
-                            current_score,
-                        )
-                    else:
-                        self.sorted_trains[i] = (
-                            nickname,
-                            best_score,
-                            current_score,
-                        )
-                    train_found = True
-                    break
-
-            # If train not found, add it
-            if not train_found:
-                self.sorted_trains.append((nickname, current_score, current_score))
+        self.sorted_trains = [(
+                nickname,
+                self.client.best_scores.get(nickname, 0),
+                train_data.get("score", 0),
+            ) for nickname, train_data in self.client.trains.items()]
 
         # Sort by best score in descending order
         self.sorted_trains.sort(key=lambda x: x[1], reverse=True)

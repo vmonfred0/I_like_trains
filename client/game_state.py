@@ -71,10 +71,6 @@ class GameState:
                 self.client.leaderboard_height,
             )
 
-            logger.info(
-                f"Updated game dimensions: game width = {self.client.game_width}, screen width = {self.client.screen_width}"
-            )
-
             # Schedule window update instead of directly creating the window
             # This will be handled by the main thread
             self.client.update_game_window_size(
@@ -92,6 +88,11 @@ class GameState:
             logger.info(f"Cell size updated: {self.client.cell_size}")
             if self.game_mode == GameMode.AGENT and self.client.agent is not None:
                 self.client.agent.cell_size = self.client.cell_size
+
+        if "best_scores" in data:
+            self.client.best_scores = data["best_scores"]
+            if self.game_mode == GameMode.AGENT and self.client.agent is not None:
+                self.client.agent.best_scores = self.client.best_scores
 
         # Update the agent's state
         if self.game_mode == GameMode.AGENT and self.client.agent is not None:
