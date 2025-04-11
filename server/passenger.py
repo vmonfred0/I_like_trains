@@ -32,22 +32,22 @@ class Passenger:
 
         for _ in range(max_attempts):
             x = (
-                random.randint(0, (self.game.new_game_width // cell_size) - 1)
+                random.randint(0, (self.game.game_width // cell_size) - 1)
                 * cell_size
             )
             y = (
-                random.randint(0, (self.game.new_game_height // cell_size) - 1)
+                random.randint(0, (self.game.game_height // cell_size) - 1)
                 * cell_size
             )
 
             if (
                 x < 0
-                or x >= self.game.new_game_width
+                or x >= self.game.game_width
                 or y < 0
-                or y >= self.game.new_game_height
+                or y >= self.game.game_height
             ):
                 logger.error(
-                    f"Invalid spawn position: {(x, y)}, game dimensions: {self.game.new_game_width}x{self.game.new_game_height}"
+                    f"Invalid spawn position: {(x, y)}, game dimensions: {self.game.game_width}x{self.game.game_height}"
                 )
                 continue
 

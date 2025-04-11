@@ -222,34 +222,35 @@ class Client:
             return
 
         # Main loop
-        clock = pygame.time.Clock()
         logger.info(f"Running client loop: {self.running}")
+        clock = pygame.time.Clock()
         while self.running:
-            # Handle events
-            self.event_handler.handle_events()
-            # Handle any pending window updates in the main thread
-            self.handle_window_updates()
-
-            # Add automatic respawn logic
-            if (
-                not self.config.manual_spawn
-                and self.is_dead
-                and self.waiting_for_respawn
-                and not self.game_over
-            ):
-                elapsed = time.time() - self.death_time
-                if elapsed >= self.respawn_cooldown:
-                    logger.debug("Sending spawn request.")
-                    self.network.send_spawn_request()
-
-            self.renderer.draw_game()
-
-            # Limit FPS
-            clock.tick(60)
+            self.update()
+            clock.tick(self.config.tick_rate)
 
         # Close connection
         self.network.disconnect()
         pygame.quit()
+
+    def update(self):
+        """Update client state"""
+        # Handle events
+        self.event_handler.handle_events()
+        self.handle_window_updates()
+
+        # Add automatic respawn logic
+        if (
+            not self.config.manual_spawn
+            and self.is_dead
+            and self.waiting_for_respawn
+            and not self.game_over
+        ):
+            elapsed = time.time() - self.death_time
+            if elapsed >= self.respawn_cooldown:
+                logger.debug("Sending spawn request.")
+                self.network.send_spawn_request()
+
+        self.renderer.draw_game()
 
     def handle_state_data(self, data):
         """Handle state data received from server"""

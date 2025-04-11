@@ -52,14 +52,10 @@ class Room:
         self.id = room_id
         self.nb_players_max = nb_players_max
         self.server_socket = server_socket
-        send_cooldown_notification
+        self.send_cooldown_notification = send_cooldown_notification
         self.remove_room = remove_room
 
-        self.game = Game(config, send_cooldown_notification, self.nb_players_max)
-        # TODO(alok): why not put room_id and server in Game's __init__ method?
         self.running = running
-
-        self.game.room_id = room_id  # Store the room ID in the Game object
 
         self.clients = {}  # {addr: nickname}
         self.client_game_modes = {}  # {addr: game_mode}
@@ -104,8 +100,10 @@ class Room:
         # self.waiting_room_thread.join() # Cannot join from the same thread
 
         if not self.game_thread:
-            # Initialize game size based on connected players
-            self.game.initialize_game_size(len(self.clients))
+            self.game = Game(self.config, self.send_cooldown_notification, self.nb_players_max, self.id)
+
+            self.fill_with_bots()
+            self.add_all_trains()
 
             # Start the game thread
             self.game_thread = threading.Thread(target=self.game.run)
@@ -291,8 +289,6 @@ class Room:
                             logger.info(
                                 f"Waiting time expired for room {self.id}, adding bots and starting game"
                             )
-                            self.fill_with_bots()
-                            self.add_all_trains()
                             self.start_game()
 
                     waiting_room_data = {

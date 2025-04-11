@@ -50,21 +50,21 @@ def generate_random_non_blue_color():
 
 class Game:
     # TODO(alok): remove nb_players and use config.clients_per_room
-    def __init__(self, config: ServerConfig, send_cooldown_notification, nb_players):
+    def __init__(self, config: ServerConfig, send_cooldown_notification, nb_players, room_id):
         self.config = config
-
         self.send_cooldown_notification = send_cooldown_notification
+        self.room_id = room_id
 
-        self.game_width = ORIGINAL_GAME_WIDTH
-        self.game_height = ORIGINAL_GAME_HEIGHT
-        self.new_game_width = self.game_width
-        self.new_game_height = self.game_height
-        self.cell_size = CELL_SIZE
-
-        self.running = True
-        self.delivery_zone = DeliveryZone(
-            self.game_width, self.game_height, self.cell_size, nb_players
+        # Calculate initial game size based on number of clients
+        self.game_width = ORIGINAL_GAME_WIDTH + (nb_players * GAME_SIZE_INCREMENT)
+        self.game_height = ORIGINAL_GAME_HEIGHT + (
+            nb_players * GAME_SIZE_INCREMENT
         )
+
+        self.delivery_zone = DeliveryZone(
+            self.game_width, self.game_height, CELL_SIZE, nb_players
+        )
+        self.cell_size = CELL_SIZE
 
         self.trains = {}
         self.ai_clients = {}
@@ -78,12 +78,13 @@ class Game:
         self.lock = threading.Lock()
         self.last_update = time.time()
 
+        self.game_started = False  # Track if game has started
+        self.last_delivery_times = {}  # {nickname: last_delivery_time}
+        self.running = True
+
         self.high_score_all_time = HighScore()
         self.high_score_all_time.load() 
         self.high_score_all_time.dump()
-
-        self.game_started = False  # Track if game has started
-        self.last_delivery_times = {}  # {nickname: last_delivery_time}
 
         # Dirty flags for the game
         self._dirty = {
@@ -241,21 +242,6 @@ class Game:
 
         if changed:
             self._dirty["passengers"] = True
-
-    def initialize_game_size(self, num_clients):
-        """Initialize game size based on number of connected clients"""
-        if not self.game_started:
-            # Calculate initial game size based on number of clients
-            self.game_width = ORIGINAL_GAME_WIDTH + (num_clients * GAME_SIZE_INCREMENT)
-            self.game_height = ORIGINAL_GAME_HEIGHT + (
-                num_clients * GAME_SIZE_INCREMENT
-            )
-
-            self.new_game_width = self.game_width
-            self.new_game_height = self.game_height
-            self._dirty["size"] = True
-            self._dirty["cell_size"] = True
-            self.game_started = True
 
     def add_train(self, nickname):
         """Add a new train to the game"""
