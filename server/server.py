@@ -788,53 +788,56 @@ class Server:
 
     def remove_room(self, room_id):
         """Remove a room from the server"""
-        if room_id in self.rooms:
-            logger.info(f"Removing room {room_id}")
-            room = self.rooms[room_id]
+        try:
+            if room_id in self.rooms:
+                logger.info(f"Removing room {room_id}")
+                room = self.rooms[room_id]
 
-            # 1. Signal the game to stop (if it exists and is running)
-            if room.game and room.game.running:
-                logger.debug(f"Signaling game in room {room_id} to stop.")
-                room.game.running = False
+                # 1. Signal the game to stop (if it exists and is running)
+                if hasattr(room, 'game') and room.game and room.game.running:
+                    logger.debug(f"Signaling game in room {room_id} to stop.")
+                    room.game.running = False
 
-            # 2. Signal the room's threads to stop
-            if room.running:
-                logger.debug(f"Signaling room {room_id} threads to stop.")
-                room.running = False
+                # 2. Signal the room's threads to stop
+                if room.running:
+                    logger.debug(f"Signaling room {room_id} threads to stop.")
+                    room.running = False
 
-            # 3. Wait for the game thread to finish if it's running
-            if room.game_thread and room.game_thread.is_alive():
-                logger.info(
-                    f"Waiting for game thread in room {room_id} to terminate before removal"
-                )
-                room.game_thread.join(timeout=2.0)  # Wait a bit
-                if room.game_thread.is_alive():
-                    logger.warning(
-                        f"Game thread for room {room_id} did not terminate gracefully."
+                # 3. Wait for the game thread to finish if it's running
+                if room.game_thread and room.game_thread.is_alive():
+                    logger.info(
+                        f"Waiting for game thread in room {room_id} to terminate before removal"
                     )
+                    room.game_thread.join(timeout=2.0)  # Wait a bit
+                    if room.game_thread.is_alive():
+                        logger.warning(
+                            f"Game thread for room {room_id} did not terminate gracefully."
+                        )
 
-            # 4. Stop and clean up AI clients associated with this room
-            ai_to_remove = []
-            # Use list() to avoid modification during iteration if necessary, although it might not be strictly needed here
-            for ai_name, ai_client in list(self.rooms[room_id].ai_clients.items()):
-                # Check if ai_client.room exists before accessing id
-                if ai_client.room and ai_client.room.id == room_id:
-                    logger.debug(f"Stopping AI client {ai_name} in room {room_id}")
-                    ai_client.stop()
-                    ai_to_remove.append(ai_name)
+                # 4. Stop and clean up AI clients associated with this room
+                ai_to_remove = []
+                # Use list() to avoid modification during iteration if necessary, although it might not be strictly needed here
+                for ai_name, ai_client in list(self.rooms[room_id].ai_clients.items()):
+                    # Check if ai_client.room exists before accessing id
+                    if ai_client.room and ai_client.room.id == room_id:
+                        logger.debug(f"Stopping AI client {ai_name} in room {room_id}")
+                        ai_client.stop()
+                        ai_to_remove.append(ai_name)
 
-            for ai_name in ai_to_remove:
-                if ai_name in self.rooms[room_id].ai_clients:
-                    del self.rooms[room_id].ai_clients[ai_name]
-                if ai_name in self.rooms[room_id].used_ai_names:
-                    # Use discard to avoid KeyError if name somehow already removed
-                    self.rooms[room_id].used_ai_names.discard(ai_name)
+                for ai_name in ai_to_remove:
+                    if ai_name in self.rooms[room_id].ai_clients:
+                        del self.rooms[room_id].ai_clients[ai_name]
+                    if ai_name in self.rooms[room_id].used_ai_names:
+                        # Use discard to avoid KeyError if name somehow already removed
+                        self.rooms[room_id].used_ai_names.discard(ai_name)
 
-            # 5. Now remove the room itself
-            del self.rooms[room_id]
-            logger.info(f"Room {room_id} removed successfully")
-        else:
-            logger.warning(f"Attempted to remove non-existent room {room_id}")
+                # 5. Now remove the room itself
+                del self.rooms[room_id]
+                logger.info(f"Room {room_id} removed successfully")
+            else:
+                logger.warning(f"Attempted to remove non-existent room {room_id}")
+        except Exception as e:
+            logger.error(f"Error removing room {room_id}: {e}")
 
     def run(self):
         """Main server loop"""
