@@ -286,7 +286,7 @@ class Game:
             return True
         return False
 
-    def send_cooldown(self, nickname):
+    def send_cooldown(self, nickname, death_reason):
         """Remove a train and update game size"""
         if nickname in self.trains:
             # Register the death time
@@ -298,7 +298,7 @@ class Game:
 
             # Notify the client of the cooldown
             self.send_cooldown_notification(
-                nickname, self.config.respawn_cooldown_seconds
+                nickname, self.config.respawn_cooldown_seconds, death_reason
             )
             # If the client is a bot
             if nickname in self.ai_clients:
@@ -313,8 +313,9 @@ class Game:
             logger.error(f"Train {nickname} not found in game")
             return False
 
-    def handle_train_death(self, nickname):
-        self.send_cooldown(nickname)
+    def handle_train_death(self, train_nicknames, death_reason):
+        for nickname in train_nicknames:
+            self.send_cooldown(nickname, death_reason)
         self.update_passengers_count()
         
     def get_train_cooldown(self, nickname):
