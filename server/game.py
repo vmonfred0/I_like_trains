@@ -92,6 +92,7 @@ class Game:
             "cell_size": True,
             "passengers": True,
             "delivery_zone": True,
+            "best_scores": True,
         }
         logger.info(f"Game initialized with tick rate: {self.config.tick_rate}")
 
@@ -132,6 +133,11 @@ class Game:
         if trains_data:
             state["trains"] = trains_data
             self._dirty["trains"] = False
+
+        # Add best scores if modified
+        if self._dirty["best_scores"]:
+            state["best_scores"] = self.best_scores
+            self._dirty["best_scores"] = False
 
         return state
 
@@ -342,8 +348,6 @@ class Game:
             # Check for passenger collisions
             for passenger in self.passengers:
                 if train.position == passenger.position:
-                    # Increase train score
-
                     train.add_wagons(nb_wagons=passenger.value)
 
                     desired_passengers = (len(self.trains)) // TRAINS_PASSENGER_RATIO
@@ -370,6 +374,7 @@ class Game:
                         # Update best score if needed
                         if train.score > self.best_scores.get(train.nickname, 0):
                             self.best_scores[train.nickname] = train.score
+                            self._dirty["best_scores"] = True
                         # Update the last delivery time for this train
                         self.last_delivery_times[train.nickname] = current_time
 
