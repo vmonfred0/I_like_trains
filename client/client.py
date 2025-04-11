@@ -44,6 +44,7 @@ class Client:
         self.waiting_for_respawn = False
         self.death_time = 0
         self.respawn_cooldown = 0
+        self.last_spawn_request_time = 0
         self.is_initialized = False
         self.in_waiting_room = True
         self.lock = threading.Lock()
@@ -239,9 +240,12 @@ class Client:
                 and not self.game_over
             ):
                 elapsed = time.time() - self.death_time
-                if elapsed >= self.respawn_cooldown:
+                current_time = time.time()
+                # Only send spawn request if cooldown has passed AND at least 1 second since last request
+                if elapsed >= self.respawn_cooldown and current_time - self.last_spawn_request_time >= 1.0:
                     logger.debug("Sending spawn request.")
                     self.network.send_spawn_request()
+                    self.last_spawn_request_time = current_time
 
             self.renderer.draw_game()
 
