@@ -27,7 +27,7 @@ SPEED_DECREMENT_COEFFICIENT = 0.95  # Speed reduction coefficient for each wagon
 ACTIVATE_SPEED_BOOST = True  # Activate speed boost
 BOOST_DURATION = 0.25  # Duration of speed boost in seconds
 BOOST_COOLDOWN_DURATION = 10.0  # Cooldown duration for speed boost
-BOOST_INTENSITY = 1.5  # Intensity of speed boost
+BOOST_INTENSITY = 3  # Intensity of speed boost
 
 
 class Train:

@@ -11,6 +11,7 @@ from common.config import Config
 from server.passenger import Passenger
 from server.room import Room
 from common.version import EXPECTED_CLIENT_VERSION
+from server.train import BOOST_COOLDOWN_DURATION
 
 
 def setup_server_logger():
@@ -582,6 +583,34 @@ class Server:
                         new_passenger.value = 1
                         room.game.passengers.append(new_passenger)
                         room.game._dirty["passengers"] = True
+
+                        # Notify the client of the success with the cooldown
+                        response = {
+                            "type": "drop_wagon_success",
+                            "cooldown": BOOST_COOLDOWN_DURATION
+                        }
+                        self.server_socket.sendto(
+                            (json.dumps(response) + "\n").encode(), addr
+                        )
+                    else:
+                        # Calculate remaining cooldown time if the cooldown is active
+                        message = "Cannot drop wagon (no wagons available)"
+                        remaining_cooldown = 0
+                        
+                        if room.game.trains[nickname].boost_cooldown_active:
+                            current_time = time.time()
+                            elapsed_time = current_time - room.game.trains[nickname].start_cooldown_time
+                            remaining_cooldown = max(0, BOOST_COOLDOWN_DURATION - elapsed_time)
+                            message = f"Cannot drop wagon (cooldown active for {remaining_cooldown:.1f} more seconds)"
+                        
+                        # Notify the client that the drop_wagon action failed
+                        response = {
+                            "type": "drop_wagon_failed",
+                            "message": message,
+                        }
+                        self.server_socket.sendto(
+                            (json.dumps(response) + "\n").encode(), addr
+                        )
 
         except Exception as e:
             logger.error(f"Error handling client message: {e}")

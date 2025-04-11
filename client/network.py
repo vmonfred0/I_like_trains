@@ -203,9 +203,11 @@ class NetworkManager:
                                 self.disconnect()
                             
                         elif message_type == "drop_wagon_success":
-                            self.client.handle_drop_wagon_success(message_data)
+                            cooldown = message_data.get("cooldown", 0)
+                            logger.info(f"Successfully dropped wagon! Cooldown: {cooldown} seconds")
                         elif message_type == "drop_wagon_failed":
-                            pass
+                            error_msg = message_data.get("message", "Unknown reason")
+                            logger.info(f"Failed to drop wagon: {error_msg}")
 
                         elif message_type == "leaderboard":
                             self.client.handle_leaderboard_data(message_data["data"])
