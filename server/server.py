@@ -722,11 +722,12 @@ class Server:
                         # remove_room handles setting flags, stopping threads, and cleanup
                         self.remove_room(room.id)
                     else:
-                        # Other human players remain. Create an AI for the disconnecting player's train if it exists.
-                        if original_nickname in room.game.trains:
-                            room.replace_player_by_ai(
-                                train_nickname_to_replace=original_nickname
-                            )
+                        if room.train:
+                            # Other human players remain. Create an AI for the disconnecting player's train if it exists.
+                            if original_nickname in room.game.trains:
+                                room.replace_player_by_ai(
+                                    train_nickname_to_replace=original_nickname
+                                )
 
                     break  # Exit the room loop as we found and processed the client
 
