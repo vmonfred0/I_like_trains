@@ -34,13 +34,6 @@ class DeliveryZone:
         self.height = cell_size * (
             height_with_factor + player_factor if random_increased_dimension == "height" else height_with_factor
         )
-
-        logger.debug(f"Delivery zone dimensions: {self.width} x {self.height}")
-        logger.debug(f"Game dimensions: {game_width} x {game_height}")
-        logger.debug(f"Cell size: {cell_size}")
-        logger.debug(f"Number of players: {nb_players}")
-        logger.debug(f"x range: {game_width // cell_size - 1 - self.width // cell_size}")
-        logger.debug(f"y range: {game_height // cell_size - 1 - self.height // cell_size}")
         
         # Calculate and clamp the upper bound for x
         max_x_offset = game_width // cell_size - 1 - self.width // cell_size
