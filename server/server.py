@@ -298,7 +298,7 @@ class Server:
 
         name_to_check = message.get("nickname", "")
         if addr:
-            if not name_to_check or len(name_to_check) == 0:
+            if not name_to_check or len(name_to_check) == 0 or len(name_to_check) > 15:
                 # Empty name, considered as not available
                 response = {"type": "name_check", "available": False}
 

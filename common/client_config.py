@@ -21,10 +21,6 @@ class ClientConfig(BaseModel):
     # Port server is listening on.
     port: int = 5555
 
-    # Size of game window in pixels
-    screen_width: int = 500
-    screen_height: int = 360
-
     # Size of leaderboard in pixels
     leaderboard_width: int = 280
 
