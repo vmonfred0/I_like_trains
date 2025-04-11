@@ -307,11 +307,9 @@ class NetworkManager:
             # Reset name check variables
             self.client.name_check_received = False
 
-            # Generate a unique test name using timestamp
-            test_name = f"test_{int(time.time())}"
 
             # Send a ping request (this is allowed for unregistered clients)
-            check_message = {"type": "ping", "nickname": test_name}
+            check_message = {"type": "ping"}
             success = self.send_message(check_message)
 
             if not success:
