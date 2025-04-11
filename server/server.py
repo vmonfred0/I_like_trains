@@ -591,7 +591,7 @@ class Server:
         except Exception as e:
             logger.error(f"Error handling client message: {e}")
 
-    def send_cooldown_notification(self, nickname, cooldown):
+    def send_cooldown_notification(self, nickname, cooldown, death_reason):
         """Send a cooldown notification to a specific client"""
         for room in self.rooms.values():
             for addr, name in room.clients.items():
@@ -605,7 +605,7 @@ class Server:
                         ):
                             return
 
-                        response = {"type": "death", "remaining": cooldown}
+                        response = {"type": "death", "remaining": cooldown, "reason": death_reason}
                         self.server_socket.sendto(
                             (json.dumps(response) + "\n").encode(), addr
                         )
@@ -619,7 +619,7 @@ class Server:
     def ping_clients(self):
         """Thread that sends ping messages to all clients and checks for timeouts"""
         while self.running:
-            # try: TODO (adrien) restore
+            
             current_time = time.time()
 
             # PART 1: Check all clients for timeouts
