@@ -318,11 +318,11 @@ class Renderer:
             )  # Moved down to make room for waiting time
 
             # Column configuration
-            column_width = 150
+            column_width = 240
             players_per_column = 10
             start_y = 190  # Moved down to make room for waiting time
 
-            # List players in two columns
+            # List players in multiple columns
             for i, player in enumerate(players):
                 column = i // players_per_column
                 row = i % players_per_column

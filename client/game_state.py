@@ -150,7 +150,21 @@ class GameState:
         # Update waiting room data
         self.client.waiting_room_data = data
 
-        self.client.leaderboard_height = data.get("nb_players") * 10
+        nb_players = data.get("nb_players")
+        if (nb_players is not None):
+            if self.client.nb_players != nb_players:
+                self.client.nb_players = nb_players
+
+                new_width = max(self.client.screen_width, self.client.screen_width - (100 if nb_players > 10 else 0) + (nb_players//10 * 240))
+                new_height = min(self.client.screen_height + nb_players*37, self.client.screen_height + 370)
+                
+                self.client.update_game_window_size(
+                    width=new_width,
+                    height=new_height
+                )
+                logger.info(f"Updated game window size to {new_width}x{new_height}")
+
+            self.client.leaderboard_height = nb_players * 10
 
     def handle_death(self, data):
         """Handle cooldown data received from the server"""
