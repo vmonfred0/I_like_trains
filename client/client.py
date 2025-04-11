@@ -51,6 +51,7 @@ class Client:
         # Game over variables
         self.game_over = False
         self.game_over_data = None
+        self.best_scores = {}
         self.final_scores = []
 
         # Name verification variables
