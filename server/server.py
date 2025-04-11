@@ -10,6 +10,7 @@ import random
 from common.config import Config
 from server.passenger import Passenger
 from server.room import Room
+from common.version import EXPECTED_CLIENT_VERSION
 
 
 def setup_server_logger():
@@ -472,16 +473,9 @@ class Server:
         # Send join success response immediately
         response = {
             "type": "join_success",
-            "data": {
-                "room_id": selected_room.id,
-                "current_players": len(selected_room.clients),
-                "max_players": selected_room.nb_players_max,
-            },
+            "expected_version": EXPECTED_CLIENT_VERSION
         }
         self.server_socket.sendto((json.dumps(response) + "\n").encode(), addr)
-
-        # if self.config.game_mode != GameMode.OBSERVER:
-        # Send initial game state immediately
         game_status = {
             "type": "waiting_room",
             "data": {

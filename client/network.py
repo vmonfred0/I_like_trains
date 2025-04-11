@@ -9,6 +9,8 @@ import logging
 import threading
 import time
 
+from common.version import EXPECTED_CLIENT_VERSION
+
 
 # Configure logging
 logging.basicConfig(
@@ -202,8 +204,11 @@ class NetworkManager:
                             self.client.handle_game_status(message_data)
 
                         elif message_type == "join_success":
-                            logger.debug("Received join success response")
-
+                            expected_version = message_data["expected_version"]
+                            if (expected_version != EXPECTED_CLIENT_VERSION):
+                                logger.error(f"Client version {EXPECTED_CLIENT_VERSION} does not match server version {expected_version}. Please update your client.")
+                                self.disconnect()
+                            
                         elif message_type == "drop_wagon_success":
                             self.client.handle_drop_wagon_success(
                                 message_data
