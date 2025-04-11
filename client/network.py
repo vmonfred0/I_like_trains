@@ -146,7 +146,7 @@ class NetworkManager:
                 break
 
             # For UDP, we use recvfrom which returns the data and address
-            data, addr = self.socket.recvfrom(4096)
+            data, addr = self.socket.recvfrom(65536)
 
             if not data:
                 continue
