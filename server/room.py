@@ -258,8 +258,7 @@ class Room:
         while self.running and not self.stop_waiting_room:
             if self.clients and not self.game_thread:
                 if self.is_full():
-                    logger.info("Room is full. Starting game")
-                    self.add_all_trains()
+                    logger.info("Room is full")
                     self.start_game()
                     continue
 
