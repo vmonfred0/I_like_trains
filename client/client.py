@@ -119,6 +119,9 @@ class Client:
         elif self.game_mode == GameMode.AGENT:
             self.nickname = self.config.agent.nickname
             self.sciper = self.config.sciper
+        elif self.game_mode == GameMode.OBSERVER:
+            self.nickname = ""
+            self.sciper = self.config.sciper
 
         if self.config.add_suffix_to_nickname:
             # Add random suffix
@@ -216,10 +219,6 @@ class Client:
                 pygame.time.wait(3000)  # Show error for 3 seconds
             pygame.quit()
             return
-
-        logger.debug(
-            f"Sending agent ids: {self.nickname}, {self.sciper}, {self.game_mode.value}"
-        )
 
         if not self.network.send_agent_ids(
             self.nickname, self.sciper, self.game_mode.value
