@@ -485,6 +485,7 @@ class Room:
             agent = random.choice(self.config.agents)
             ai_nickname = self.get_available_ai_name(agent)
             ai_agent_file_name = agent.agent_file_name
+            is_dead = not self.game.trains[train_nickname_to_replace].alive
 
             # Save the train's color
             if train_nickname_to_replace in self.game.train_colors:
@@ -531,7 +532,7 @@ class Room:
 
             # Create the AI client with the new name
             self.ai_clients[ai_nickname] = AIClient(
-                self, ai_nickname, ai_agent_file_name
+                self, ai_nickname, ai_agent_file_name, is_dead, is_dead
             )
 
             # Add the AI client to the game
