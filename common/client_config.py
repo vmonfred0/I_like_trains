@@ -21,10 +21,6 @@ class ClientConfig(BaseModel):
     # Port server is listening on.
     port: int = 5555
 
-    # Size of game window in pixels
-    screen_width: int = 500
-    screen_height: int = 360
-
     # Size of leaderboard in pixels
     leaderboard_width: int = 280
 
@@ -55,3 +51,5 @@ class ClientConfig(BaseModel):
     # If True, the client will generate a random suffix for the nickname, allows you
     # to have multiple clients with the same nickname in the config
     add_suffix_to_nickname: bool = False
+
+    

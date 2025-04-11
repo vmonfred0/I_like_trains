@@ -81,10 +81,10 @@ class Client:
         self.leaderboard_data = []
         self.waiting_room_data = None
 
-        # Calculate screen dimensions based on game area and leaderboard
-        # TODO(alok): delete these and use self.config.screen_width and self.config.screen_height instead
-        self.screen_width = self.config.screen_width
-        self.screen_height = self.config.screen_height
+        self.screen_width = 380
+        self.screen_height = 240 
+
+        self.nb_players = 0
 
         # Window creation flags and parameters
         self.window_needs_update = False
@@ -145,11 +145,15 @@ class Client:
         self.ping_response_received = False
         self.server_disconnected = False
 
-    def update_game_window_size(self, width, height):
+    def update_game_window_size(self, width=None, height=None):
         """Schedule window size update to be done in main thread"""
         with self.lock:
-            self.window_needs_update = True
-            self.window_update_params = {"width": width, "height": height}
+            if (width is not None):
+                self.window_update_params["width"] = width
+                self.window_needs_update = True
+            if (height is not None):
+                self.window_update_params["height"] = height
+                self.window_needs_update = True
 
     def handle_window_updates(self):
         """Process any pending window updates in the main thread"""
@@ -204,8 +208,8 @@ class Client:
                 self.screen.blit(
                     text,
                     (
-                        self.config.screen_width // 2 - text.get_width() // 2,
-                        self.config.screen_height // 2 - text.get_height() // 2,
+                        self.screen_width // 2 - text.get_width() // 2,
+                        self.screen_height // 2 - text.get_height() // 2,
                     ),
                 )
                 pygame.display.flip()
