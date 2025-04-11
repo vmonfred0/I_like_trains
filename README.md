@@ -131,11 +131,11 @@ Example configuration in `config.json`:
     "agents": [
         {
             "nickname": "AgentExample1",
-            "agent_file_name": "agent_example1.py"
+            "agent_file_name": "agent.py"
         },
         {
             "nickname": "AgentExample2",
-            "agent_file_name": "agent_example2.py"
+            "agent_file_name": "agent.py"
         }
     ]
 }
