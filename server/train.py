@@ -3,6 +3,7 @@ Train class for the game "I Like Trains"
 """
 
 import logging
+import time
 
 from common.move import Move
 
@@ -26,7 +27,7 @@ SPEED_DECREMENT_COEFFICIENT = 0.95  # Speed reduction coefficient for each wagon
 ACTIVATE_SPEED_BOOST = True  # Activate speed boost
 BOOST_DURATION = 0.25  # Duration of speed boost in seconds
 BOOST_COOLDOWN_DURATION = 10.0  # Cooldown duration for speed boost
-BOOST_INTENSITY = 1.5  # Intensity of speed boost
+BOOST_INTENSITY = 3  # Intensity of speed boost
 
 
 class Train:
@@ -56,16 +57,14 @@ class Train:
             "score": True,
             "color": True,
             "alive": True,
-            "speed": True,
-            "speed_boost": True,
-            "boost_cooldown": True,
+            "boost_cooldown_active": True
         }
         self.client_logger = logging.getLogger("client.train")
         # Speed boost properties
         self.speed_boost_active = False
         self.speed_boost_timer = 0
         self.boost_cooldown_active = False
-        self.boost_cooldown_timer = 0
+        self.start_cooldown_time = 0
         self.normal_speed = INITIAL_SPEED  # Store normal speed for after boost ends
 
     def get_position(self):
@@ -98,19 +97,18 @@ class Train:
                 # Reset speed boost
                 self.speed_boost_active = False
                 self.speed = self.normal_speed
-                self._dirty["speed"] = True
-
-                # Start cooldown
-                self.boost_cooldown_active = True
-                self.boost_cooldown_timer = BOOST_COOLDOWN_DURATION
+                # self._dirty["speed"] = True
 
         # Manage boost cooldown timer
         if self.boost_cooldown_active:
-            self.boost_cooldown_timer -= 1 / self.tick_rate  # Decrement by seconds
-            if self.boost_cooldown_timer <= 0:
+            current_time = time.time()
+            elapsed_time = current_time - self.start_cooldown_time
+            if elapsed_time >= BOOST_COOLDOWN_DURATION + BOOST_DURATION:
+                logger.debug(f"Resetting cooldown for train {self.nickname}")
                 # Reset cooldown
                 self.boost_cooldown_active = False
-
+                self._dirty["boost_cooldown_active"] = True
+                
         # Increment movement timer
         self.move_timer += 1
 
@@ -152,7 +150,7 @@ class Train:
             ACTIVATE_SPEED_BOOST
             and not self.boost_cooldown_active
             and not self.speed_boost_active
-            and len(self.wagons) > 1
+            and len(self.wagons) > 0
         ):
             logger.debug(f"Applying speed boost to train {self.nickname}")
             # Get the last wagon position
@@ -167,7 +165,12 @@ class Train:
             self.speed *= BOOST_INTENSITY
             self.speed_boost_active = True
             self.speed_boost_timer = BOOST_DURATION  # 1 second boost
-            self._dirty["speed"] = True
+
+            # Start cooldown
+            logger.debug(f"Starting cooldown for train {self.nickname}")
+            self.boost_cooldown_active = True
+            self.start_cooldown_time = time.time()
+            self._dirty["boost_cooldown_active"] = True
 
             return last_wagon_pos
         else:
@@ -197,7 +200,7 @@ class Train:
         new_position = (new_x, new_y)
 
         # Check collisions and bounds
-        self.check_collisions(new_position, trains)
+        self.check_collisions_with_trains(new_position, trains)
         self.check_out_of_bounds(new_position, screen_width, screen_height)
 
         if not self.alive:
@@ -212,24 +215,10 @@ class Train:
         # Update position
         self.set_position(new_position)
 
-    def kill(self):
+    def kill(self, train_nicknames, death_reason):
         self.set_alive(False)
-        self.handle_death(self.nickname)
+        self.handle_death(train_nicknames, death_reason)
         self.reset()
-
-    def serialize(self):
-        """
-        Convert train state to a serializable format for sending to the client
-        """
-        return {
-            "position": self.position,
-            "wagons": self.wagons,
-            "direction": self.direction,
-            "score": self.score,
-            "color": self.color,
-            "alive": self.alive,
-            "speed": self.speed,
-        }
 
     def to_dict(self):
         """Convert train to dictionary, returning only modified data"""
@@ -267,10 +256,9 @@ class Train:
         if self._dirty["alive"]:
             data["alive"] = self.alive
             self._dirty["alive"] = False
-        if self._dirty["speed"]:
-            data["speed"] = self.speed
-            self._dirty["speed"] = False
-
+        if self._dirty["boost_cooldown_active"]:
+            data["boost_cooldown_active"] = self.boost_cooldown_active
+            self._dirty["boost_cooldown_active"] = False
         return data
 
     def set_position(self, new_position):
@@ -297,11 +285,10 @@ class Train:
     def set_alive(self, alive):
         """Update train alive status"""
         if self.alive != alive:
-            logger.debug(f"Train {self.nickname} is dead: {not alive}")
             self.alive = alive
             self._dirty["alive"] = True
 
-    def check_collisions(self, new_position, all_trains):
+    def check_collisions_with_trains(self, new_position, all_trains):
         for wagon_pos in self.wagons:
             if new_position == wagon_pos:
                 collision_msg = (
@@ -309,9 +296,10 @@ class Train:
                 )
                 logger.info(collision_msg)
                 self.client_logger.info(collision_msg)
-                self.kill()
+                death_reason = "self_collision"
+                self.kill([self.nickname], death_reason)
                 return True
-
+            
         for train in all_trains.values():
             # If the train we are checking is dead or the train is ours, skip
             if train.nickname == self.nickname or not train.alive:
@@ -323,8 +311,8 @@ class Train:
                 )
                 logger.info(collision_msg)
                 self.client_logger.info(collision_msg)
-                train.kill()
-                self.kill()
+                death_reason = "collision_with_train"
+                self.kill([self.nickname, train.nickname], death_reason)
                 return True
 
             # Check collision with wagons
@@ -333,7 +321,8 @@ class Train:
                     collision_msg = f"Train {self.nickname} collided with wagon of train {train.nickname}"
                     logger.info(collision_msg)
                     self.client_logger.info(collision_msg)
-                    self.kill()
+                    death_reason = "collision_with_wagon"
+                    self.kill([self.nickname], death_reason)
                     return True
 
         return False
@@ -342,7 +331,7 @@ class Train:
         """Check if the train is out of the screen"""
         x, y = new_position
         if x < 0 or x >= screen_width or y < 0 or y >= screen_height:
-            self.kill()
+            self.kill([self.nickname], "out_of_bounds")
             logger.debug(
                 f"Train {self.nickname} is dead: out of the screen. Coordinates: {new_position}"
             )
@@ -362,7 +351,5 @@ class Train:
             "score": True,
             "color": True,
             "alive": True,
-            "speed": True,
-            "speed_boost": True,
-            "boost_cooldown": True,
+            "boost_cooldown_active": True
         }

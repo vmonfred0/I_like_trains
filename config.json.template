@@ -21,11 +21,11 @@
         "agents": [
             {
                 "nickname": "Agent1",
-                "agent_file_name": "agent_example1.py"
+                "agent_file_name": "agent.py"
             },
             {
                 "nickname": "Agent2",
-                "agent_file_name": "agent_example2.py"
+                "agent_file_name": "agent.py"
             }
         ]
     }

@@ -50,21 +50,21 @@ def generate_random_non_blue_color():
 
 class Game:
     # TODO(alok): remove nb_players and use config.clients_per_room
-    def __init__(self, config: ServerConfig, send_cooldown_notification, nb_players):
+    def __init__(self, config: ServerConfig, send_cooldown_notification, nb_players, room_id):
         self.config = config
-
         self.send_cooldown_notification = send_cooldown_notification
+        self.room_id = room_id
 
-        self.game_width = ORIGINAL_GAME_WIDTH
-        self.game_height = ORIGINAL_GAME_HEIGHT
-        self.new_game_width = self.game_width
-        self.new_game_height = self.game_height
-        self.cell_size = CELL_SIZE
-
-        self.running = True
-        self.delivery_zone = DeliveryZone(
-            self.game_width, self.game_height, self.cell_size, nb_players
+        # Calculate initial game size based on number of clients
+        self.game_width = ORIGINAL_GAME_WIDTH + (nb_players * GAME_SIZE_INCREMENT)
+        self.game_height = ORIGINAL_GAME_HEIGHT + (
+            nb_players * GAME_SIZE_INCREMENT
         )
+
+        self.delivery_zone = DeliveryZone(
+            self.game_width, self.game_height, CELL_SIZE, nb_players
+        )
+        self.cell_size = CELL_SIZE
 
         self.trains = {}
         self.ai_clients = {}
@@ -78,12 +78,13 @@ class Game:
         self.lock = threading.Lock()
         self.last_update = time.time()
 
+        self.game_started = False  # Track if game has started
+        self.last_delivery_times = {}  # {nickname: last_delivery_time}
+        self.running = True
+
         self.high_score_all_time = HighScore()
         self.high_score_all_time.load() 
         self.high_score_all_time.dump()
-
-        self.game_started = False  # Track if game has started
-        self.last_delivery_times = {}  # {nickname: last_delivery_time}
 
         # Dirty flags for the game
         self._dirty = {
@@ -92,6 +93,7 @@ class Game:
             "cell_size": True,
             "passengers": True,
             "delivery_zone": True,
+            "best_scores": True,
         }
         logger.info(f"Game initialized with tick rate: {self.config.tick_rate}")
 
@@ -131,6 +133,12 @@ class Game:
 
         if trains_data:
             state["trains"] = trains_data
+            self._dirty["trains"] = False
+
+        # Add best scores if modified
+        if self._dirty["best_scores"]:
+            state["best_scores"] = self.best_scores
+            self._dirty["best_scores"] = False
 
         return state
 
@@ -215,7 +223,13 @@ class Game:
         """Update the number of passengers based on the number of trains"""
         # Calculate the desired number of passengers based on the number of alive trains
         self.desired_passengers = (
-            len([train for train in self.trains.values() if train.alive])
+            len(
+                [
+                    train
+                    for train in self.trains.values()
+                    if self.contains_train(train.nickname)
+                ] # This is a list of all trains that are still alive in the game
+            )
         ) // TRAINS_PASSENGER_RATIO
 
         # Add or remove passengers if necessary
@@ -228,21 +242,6 @@ class Game:
 
         if changed:
             self._dirty["passengers"] = True
-
-    def initialize_game_size(self, num_clients):
-        """Initialize game size based on number of connected clients"""
-        if not self.game_started:
-            # Calculate initial game size based on number of clients
-            self.game_width = ORIGINAL_GAME_WIDTH + (num_clients * GAME_SIZE_INCREMENT)
-            self.game_height = ORIGINAL_GAME_HEIGHT + (
-                num_clients * GAME_SIZE_INCREMENT
-            )
-
-            self.new_game_width = self.game_width
-            self.new_game_height = self.game_height
-            self._dirty["size"] = True
-            self._dirty["cell_size"] = True
-            self.game_started = True
 
     def add_train(self, nickname):
         """Add a new train to the game"""
@@ -279,7 +278,7 @@ class Game:
             return True
         return False
 
-    def send_cooldown(self, nickname):
+    def send_cooldown(self, nickname, death_reason):
         """Remove a train and update game size"""
         if nickname in self.trains:
             # Register the death time
@@ -291,9 +290,8 @@ class Game:
 
             # Notify the client of the cooldown
             self.send_cooldown_notification(
-                nickname, self.config.respawn_cooldown_seconds
+                nickname, self.config.respawn_cooldown_seconds, death_reason
             )
-
             # If the client is a bot
             if nickname in self.ai_clients:
                 # Get the client object
@@ -307,10 +305,11 @@ class Game:
             logger.error(f"Train {nickname} not found in game")
             return False
 
-    def handle_train_death(self, nickname):
-        self.send_cooldown(nickname)
+    def handle_train_death(self, train_nicknames, death_reason):
+        for nickname in train_nicknames:
+            self.send_cooldown(nickname, death_reason)
         self.update_passengers_count()
-
+        
     def get_train_cooldown(self, nickname):
         """Get remaining cooldown time for a train"""
         if nickname in self.dead_trains:
@@ -319,9 +318,9 @@ class Game:
             return remaining
         return 0
 
-    def is_train_alive(self, nickname):
-        """Check if a train is alive"""
-        return nickname in self.trains and self.trains[nickname].alive
+    def contains_train(self, nickname):
+        """Check if a train is in the game"""
+        return nickname in self.trains
 
     def check_collisions(self):
         for _, train in self.trains.items():
@@ -335,8 +334,6 @@ class Game:
             # Check for passenger collisions
             for passenger in self.passengers:
                 if train.position == passenger.position:
-                    # Increase train score
-
                     train.add_wagons(nb_wagons=passenger.value)
 
                     desired_passengers = (len(self.trains)) // TRAINS_PASSENGER_RATIO
@@ -363,6 +360,7 @@ class Game:
                         # Update best score if needed
                         if train.score > self.best_scores.get(train.nickname, 0):
                             self.best_scores[train.nickname] = train.score
+                            self._dirty["best_scores"] = True
                         # Update the last delivery time for this train
                         self.last_delivery_times[train.nickname] = current_time
 

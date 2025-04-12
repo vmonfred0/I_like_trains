@@ -21,10 +21,6 @@ class ClientConfig(BaseModel):
     # Port server is listening on.
     port: int = 5555
 
-    # Size of game window in pixels
-    screen_width: int = 500
-    screen_height: int = 360
-
     # Size of leaderboard in pixels
     leaderboard_width: int = 280
 
@@ -51,3 +47,10 @@ class ClientConfig(BaseModel):
 
     # Manual agent configuration
     manual: ManualConfig
+
+    # If True, the client will generate a random suffix for the nickname, allows you
+    # to have multiple clients with the same nickname in the config
+    add_suffix_to_nickname: bool = False
+
+    # Controls the refresh rate of the game (in frames per second).
+    tick_rate: int = 60

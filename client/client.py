@@ -4,6 +4,7 @@ import time
 import threading
 import sys
 import importlib
+import random
 
 from client.network import NetworkManager
 from client.renderer import Renderer
@@ -43,6 +44,7 @@ class Client:
         self.waiting_for_respawn = False
         self.death_time = 0
         self.respawn_cooldown = 0
+        self.last_spawn_request_time = 0
         self.is_initialized = False
         self.in_waiting_room = True
         self.lock = threading.Lock()
@@ -50,6 +52,7 @@ class Client:
         # Game over variables
         self.game_over = False
         self.game_over_data = None
+        self.best_scores = {}
         self.final_scores = []
 
         # Name verification variables
@@ -78,10 +81,10 @@ class Client:
         self.leaderboard_data = []
         self.waiting_room_data = None
 
-        # Calculate screen dimensions based on game area and leaderboard
-        # TODO(alok): delete these and use self.config.screen_width and self.config.screen_height instead
-        self.screen_width = self.config.screen_width
-        self.screen_height = self.config.screen_height
+        self.screen_width = 380
+        self.screen_height = 240 
+
+        self.nb_players = 0
 
         # Window creation flags and parameters
         self.window_needs_update = False
@@ -112,8 +115,17 @@ class Client:
         self.nickname = ""
         if self.game_mode == GameMode.MANUAL:
             self.nickname = self.config.manual.nickname
+            self.sciper = self.config.sciper
         elif self.game_mode == GameMode.AGENT:
             self.nickname = self.config.agent.nickname
+            self.sciper = self.config.sciper
+        elif self.game_mode == GameMode.OBSERVER:
+            self.nickname = ""
+            self.sciper = self.config.sciper
+
+        if self.config.add_suffix_to_nickname:
+            # Add random suffix
+            self.nickname += f"_{random.randint(0, 999999)}"
 
         if self.game_mode != GameMode.OBSERVER:
             logger.debug("Initializing agent")
@@ -136,11 +148,15 @@ class Client:
         self.ping_response_received = False
         self.server_disconnected = False
 
-    def update_game_window_size(self, width, height):
+    def update_game_window_size(self, width=None, height=None):
         """Schedule window size update to be done in main thread"""
         with self.lock:
-            self.window_needs_update = True
-            self.window_update_params = {"width": width, "height": height}
+            if (width is not None):
+                self.window_update_params["width"] = width
+                self.window_needs_update = True
+            if (height is not None):
+                self.window_update_params["height"] = height
+                self.window_needs_update = True
 
     def handle_window_updates(self):
         """Process any pending window updates in the main thread"""
@@ -149,9 +165,7 @@ class Client:
                 width = self.window_update_params["width"]
                 height = self.window_update_params["height"]
 
-                self.screen = pygame.display.set_mode(
-                    (width, height), pygame.RESIZABLE
-                )
+                self.screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)
                 pygame.display.set_caption(f"I Like Trains - {self.game_mode.value}")
 
                 self.window_needs_update = False
@@ -197,8 +211,8 @@ class Client:
                 self.screen.blit(
                     text,
                     (
-                        self.config.screen_width // 2 - text.get_width() // 2,
-                        self.config.screen_height // 2 - text.get_height() // 2,
+                        self.screen_width // 2 - text.get_width() // 2,
+                        self.screen_height // 2 - text.get_height() // 2,
                     ),
                 )
                 pygame.display.flip()
@@ -206,51 +220,45 @@ class Client:
             pygame.quit()
             return
 
-        if self.game_mode == GameMode.AGENT:
-            nickname = self.config.agent.nickname
-            sciper = self.config.sciper
-        elif self.game_mode == GameMode.MANUAL:
-            nickname = self.config.manual.nickname
-            sciper = self.config.sciper
-        else:
-            nickname = ""
-            sciper = ""
-
-        logger.debug(f"Sending agent ids: {nickname}, {sciper}, {self.game_mode.value}")
-
-        if not self.network.send_agent_ids(nickname, sciper, self.game_mode.value):
+        if not self.network.send_agent_ids(
+            self.nickname, self.sciper, self.game_mode.value
+        ):
             logger.error("Failed to send agent ids to server")
             return
 
         # Main loop
-        clock = pygame.time.Clock()
         logger.info(f"Running client loop: {self.running}")
+        clock = pygame.time.Clock()
         while self.running:
-            # Handle events
-            self.event_handler.handle_events()
-            # Handle any pending window updates in the main thread
-            self.handle_window_updates()
-
-            # Add automatic respawn logic
-            if (
-                not self.config.manual_spawn
-                and self.is_dead
-                and self.waiting_for_respawn
-                and not self.game_over
-            ):
-                elapsed = time.time() - self.death_time
-                if elapsed >= self.respawn_cooldown:
-                    logger.debug("Sending spawn request.")
-                    self.network.send_spawn_request()
-
-            self.renderer.draw_game()
-
-            # Limit FPS
-            clock.tick(60)
+            self.update()
+            clock.tick(self.config.tick_rate)
 
         # Close connection
         self.network.disconnect()
         pygame.quit()
+
+    def update(self):
+        """Update client state"""
+        # Handle events
+        self.event_handler.handle_events()
+        self.handle_window_updates()
+
+        # Add automatic respawn logic
+        if (
+            not self.config.manual_spawn
+            and self.is_dead
+            and self.waiting_for_respawn
+            and not self.game_over
+        ):
+            elapsed = time.time() - self.death_time
+            current_time = time.time()
+            # Only send spawn request if cooldown has passed AND at least 1 second since last request
+            if elapsed >= self.respawn_cooldown and current_time - self.last_spawn_request_time >= 1.0:
+                logger.debug("Sending spawn request.")
+                self.network.send_spawn_request()
+                self.last_spawn_request_time = current_time
+
+        self.renderer.draw_game()
 
     def handle_state_data(self, data):
         """Handle state data received from server"""
@@ -271,10 +279,6 @@ class Client:
     def handle_waiting_room_data(self, data):
         """Handle waiting room data received from server"""
         self.game_state.handle_waiting_room_data(data)
-
-    def handle_drop_wagon_success(self, data):
-        """Handle successful wagon drop response from server"""
-        self.game_state.handle_drop_wagon_success(data)
 
     def handle_game_over(self, data):
         """Handle game over data received from server"""

@@ -10,6 +10,8 @@ import random
 from common.config import Config
 from server.passenger import Passenger
 from server.room import Room
+from common.version import EXPECTED_CLIENT_VERSION
+from server.train import BOOST_COOLDOWN_DURATION
 
 
 def setup_server_logger():
@@ -31,7 +33,8 @@ def setup_server_logger():
 
     # Configure the loggers of the sub-modules
     modules = [
-        "server.roomserver.game",
+        "server.room",
+        "server.game",
         "server.train",
         "server.passenger",
         "server.delivery_zone",
@@ -114,7 +117,7 @@ class Server:
             running,
             self.server_socket,
             self.send_cooldown_notification,
-            self.remove_room
+            self.remove_room,
         )
 
         logger.info(f"Created new room {room_id} with {nb_players_per_room} clients")
@@ -296,7 +299,7 @@ class Server:
 
         name_to_check = message.get("nickname", "")
         if addr:
-            if not name_to_check or len(name_to_check) == 0:
+            if not name_to_check or len(name_to_check) == 0 or len(name_to_check) > 15:
                 # Empty name, considered as not available
                 response = {"type": "name_check", "available": False}
 
@@ -381,9 +384,7 @@ class Server:
 
             try:
                 self.server_socket.sendto((json.dumps(response) + "\n").encode(), addr)
-                logger.info(
-                    f"Sciper check for '{sciper_to_check}': available"
-                )
+                logger.info(f"Sciper check for '{sciper_to_check}': available")
             except Exception as e:
                 logger.error(f"Error sending sciper check response: {e}")
 
@@ -422,16 +423,11 @@ class Server:
             return
 
         logger.info(
-            f"\nNew client {nickname} (sciper: {agent_sciper}) connecting from {addr}"
+            f"New client {nickname} (sciper: {agent_sciper}) connecting from {addr}"
         )
 
         # Initialize client activity tracking
         self.client_last_activity[addr] = time.time()
-
-        # Log new client connection
-        logger.info(
-            f"New client {nickname} (sciper: {agent_sciper}) connecting from {addr}"
-        )
 
         # Check if this sciper was previously connected and clean up any old references
         if agent_sciper in self.sciper_to_addr:
@@ -478,16 +474,9 @@ class Server:
         # Send join success response immediately
         response = {
             "type": "join_success",
-            "data": {
-                "room_id": selected_room.id,
-                "current_players": len(selected_room.clients),
-                "max_players": selected_room.nb_players_max,
-            },
+            "expected_version": EXPECTED_CLIENT_VERSION
         }
         self.server_socket.sendto((json.dumps(response) + "\n").encode(), addr)
-
-        # if self.config.game_mode != GameMode.OBSERVER:
-        # Send initial game state immediately
         game_status = {
             "type": "waiting_room",
             "data": {
@@ -525,8 +514,9 @@ class Server:
 
                 # For other message types, we need a valid room
                 logger.debug(
-                    f"Ignoring message from client {addr} as they are not in any room: {message}"
+                    f"Ignoring message from client {addr} as they are not in any room: {message}. Sending disconnect message"
                 )
+                self.handle_client_disconnection(addr, "Unknown client")
                 return
 
             nickname = room.clients.get(addr)
@@ -580,11 +570,11 @@ class Server:
                     )
 
             elif message.get("action") == "direction":
-                if nickname in room.game.trains and room.game.is_train_alive(nickname):
+                if nickname in room.game.trains and room.game.contains_train(nickname):
                     room.game.trains[nickname].change_direction(message["direction"])
 
             elif message.get("action") == "drop_wagon":
-                if nickname in room.game.trains and room.game.is_train_alive(nickname):
+                if nickname in room.game.trains and room.game.contains_train(nickname):
                     last_wagon_position = room.game.trains[nickname].drop_wagon()
                     if last_wagon_position:
                         # Create a new passenger at the position of the dropped wagon
@@ -594,33 +584,38 @@ class Server:
                         room.game.passengers.append(new_passenger)
                         room.game._dirty["passengers"] = True
 
-                        # Send a confirmation to the client
+                        # Notify the client of the success with the cooldown
                         response = {
                             "type": "drop_wagon_success",
-                            "nickname": nickname,
-                            "position": last_wagon_position,
+                            "cooldown": BOOST_COOLDOWN_DURATION
                         }
                         self.server_socket.sendto(
                             (json.dumps(response) + "\n").encode(), addr
                         )
                     else:
+                        # Calculate remaining cooldown time if the cooldown is active
+                        message = "Cannot drop wagon (no wagons available)"
+                        remaining_cooldown = 0
+                        
+                        if room.game.trains[nickname].boost_cooldown_active:
+                            current_time = time.time()
+                            elapsed_time = current_time - room.game.trains[nickname].start_cooldown_time
+                            remaining_cooldown = max(0, BOOST_COOLDOWN_DURATION - elapsed_time)
+                            message = f"Cannot drop wagon (cooldown active for {remaining_cooldown:.1f} more seconds)"
+                        
+                        # Notify the client that the drop_wagon action failed
                         response = {
                             "type": "drop_wagon_failed",
-                            "message": "Failed to drop wagon",
+                            "message": message,
                         }
                         self.server_socket.sendto(
                             (json.dumps(response) + "\n").encode(), addr
                         )
 
-            # For high scores request
-            # if "type" in message and message["type"] == "high_scores":
-            #     self.handle_high_scores_request(addr)
-            #     return
-
         except Exception as e:
             logger.error(f"Error handling client message: {e}")
 
-    def send_cooldown_notification(self, nickname, cooldown):
+    def send_cooldown_notification(self, nickname, cooldown, death_reason):
         """Send a cooldown notification to a specific client"""
         for room in self.rooms.values():
             for addr, name in room.clients.items():
@@ -634,7 +629,7 @@ class Server:
                         ):
                             return
 
-                        response = {"type": "death", "remaining": cooldown}
+                        response = {"type": "death", "remaining": cooldown, "reason": death_reason}
                         self.server_socket.sendto(
                             (json.dumps(response) + "\n").encode(), addr
                         )
@@ -648,71 +643,68 @@ class Server:
     def ping_clients(self):
         """Thread that sends ping messages to all clients and checks for timeouts"""
         while self.running:
-            try:
-                current_time = time.time()
+            
+            current_time = time.time()
 
-                # PART 1: Check all clients for timeouts
-                for addr, last_activity in list(self.client_last_activity.items()):
+            # PART 1: Check all clients for timeouts
+            for addr, last_activity in list(self.client_last_activity.items()):
+                # Skip clients that are already marked as disconnected
+                if addr in self.disconnected_clients:
+                    continue
+
+                # Check if client has timed out
+                if current_time - last_activity > self.config.client_timeout_seconds:
+                    # Client has timed out, handle disconnection
+                    self.handle_client_disconnection(addr, "timeout")
+
+            # PART 2: Send pings to clients in rooms
+            clients_to_ping = set()
+            for room in self.rooms.values():
+                for addr in room.clients.keys():
+                    clients_to_ping.add(addr)
+
+            # Send pings to all active clients in rooms
+            for addr in clients_to_ping:
+                # Skip clients that are already marked as disconnected
+                if addr in self.disconnected_clients:
+                    continue
+
+                # Skip AI clients - they don't need network messages
+                if isinstance(addr, tuple) and len(addr) == 2 and addr[0] == "AI":
+                    continue
+
+                # Send a ping message to the client
+                ping_message = {"type": "ping"}
+                try:
+                    self.server_socket.sendto(
+                        (json.dumps(ping_message) + "\n").encode(), addr
+                    )
+                    # Add the client to the ping responses dictionary with the current time
+                    self.ping_responses[addr] = current_time
+                except Exception as e:
+                    logger.debug(f"Error sending ping to client {addr}: {e}")
+
+            # Wait for responses (half the ping interval)
+            time.sleep(self.ping_interval / 2)
+
+            # PART 3: Check for clients that haven't responded to pings
+            for addr, ping_time in list(self.ping_responses.items()):
+                # If the ping was sent more than ping_interval ago and no response was received
+                if current_time - ping_time > self.ping_interval:
                     # Skip clients that are already marked as disconnected
                     if addr in self.disconnected_clients:
+                        del self.ping_responses[addr]
                         continue
 
-                    # Check if client has timed out
-                    if (
-                        current_time - last_activity
-                        > self.config.client_timeout_seconds
-                    ):
-                        # Client has timed out, handle disconnection
-                        self.handle_client_disconnection(addr, "timeout")
+                    # Client hasn't responded to ping, mark as disconnected
+                    self.handle_client_disconnection(addr, "ping timeout")
 
-                # PART 2: Send pings to clients in rooms
-                clients_to_ping = set()
-                for room in self.rooms.values():
-                    for addr in room.clients.keys():
-                        clients_to_ping.add(addr)
-
-                # Send pings to all active clients in rooms
-                for addr in clients_to_ping:
-                    # Skip clients that are already marked as disconnected
-                    if addr in self.disconnected_clients:
-                        continue
-
-                    # Skip AI clients - they don't need network messages
-                    if isinstance(addr, tuple) and len(addr) == 2 and addr[0] == "AI":
-                        continue
-
-                    # Send a ping message to the client
-                    ping_message = {"type": "ping"}
-                    try:
-                        self.server_socket.sendto(
-                            (json.dumps(ping_message) + "\n").encode(), addr
-                        )
-                        # Add the client to the ping responses dictionary with the current time
-                        self.ping_responses[addr] = current_time
-                    except Exception as e:
-                        logger.debug(f"Error sending ping to client {addr}: {e}")
-
-                # Wait for responses (half the ping interval)
-                time.sleep(self.ping_interval / 2)
-
-                # PART 3: Check for clients that haven't responded to pings
-                for addr, ping_time in list(self.ping_responses.items()):
-                    # If the ping was sent more than ping_interval ago and no response was received
-                    if current_time - ping_time > self.ping_interval:
-                        # Skip clients that are already marked as disconnected
-                        if addr in self.disconnected_clients:
-                            del self.ping_responses[addr]
-                            continue
-
-                        # Client hasn't responded to ping, mark as disconnected
-                        self.handle_client_disconnection(addr, "ping timeout")
-
-                # Sleep for the remaining time of the ping interval
-                time.sleep(self.ping_interval / 2)
-            except Exception as e:
-                logger.error(f"Error in ping_clients: {e}")
-                # Sleep on error to avoid high CPU usage
-                time.sleep(self.ping_interval)
+            # Sleep for the remaining time of the ping interval
+            time.sleep(self.ping_interval / 2)
+            # except Exception as e:
+            #     logger.error(f"Error in ping_clients: {e}")
+            #     # Sleep on error to avoid high CPU usage
+            #     time.sleep(self.ping_interval)
 
     def handle_client_disconnection(self, addr, reason="unknown"):
         """Handle client disconnection - centralized method to avoid code duplication"""
@@ -759,15 +751,12 @@ class Server:
                         # remove_room handles setting flags, stopping threads, and cleanup
                         self.remove_room(room.id)
                     else:
-                        # Other human players remain. Create an AI for the disconnecting player's train if it exists.
-                        if original_nickname in room.game.trains:
-                            logger.info(
-                                f"Creating AI client for train {original_nickname}"
-                            )
-                            room.create_ai_for_train(
-                                train_nickname_to_replace=original_nickname
-                            )  # TODO(adrien) replace all names by nicknames
-                        # else: Train might not exist or is already AI, log if necessary for debug
+                        if room.game.trains:
+                            # Other human players remain. Create an AI for the disconnecting player's train if it exists.
+                            if original_nickname in room.game.trains:
+                                room.replace_player_by_ai(
+                                    train_nickname_to_replace=original_nickname
+                                )
 
                     break  # Exit the room loop as we found and processed the client
 
@@ -799,53 +788,56 @@ class Server:
 
     def remove_room(self, room_id):
         """Remove a room from the server"""
-        if room_id in self.rooms:
-            logger.info(f"Removing room {room_id}")
-            room = self.rooms[room_id]
+        try:
+            if room_id in self.rooms:
+                logger.info(f"Removing room {room_id}")
+                room = self.rooms[room_id]
 
-            # 1. Signal the game to stop (if it exists and is running)
-            if room.game and room.game.running:
-                logger.debug(f"Signaling game in room {room_id} to stop.")
-                room.game.running = False
+                # 1. Signal the game to stop (if it exists and is running)
+                if hasattr(room, 'game') and room.game and room.game.running:
+                    logger.debug(f"Signaling game in room {room_id} to stop.")
+                    room.game.running = False
 
-            # 2. Signal the room's threads to stop
-            if room.running:
-                logger.debug(f"Signaling room {room_id} threads to stop.")
-                room.running = False
+                # 2. Signal the room's threads to stop
+                if room.running:
+                    logger.debug(f"Signaling room {room_id} threads to stop.")
+                    room.running = False
 
-            # 3. Wait for the game thread to finish if it's running
-            if room.game_thread and room.game_thread.is_alive():
-                logger.info(
-                    f"Waiting for game thread in room {room_id} to terminate before removal"
-                )
-                room.game_thread.join(timeout=2.0)  # Wait a bit
-                if room.game_thread.is_alive():
-                    logger.warning(
-                        f"Game thread for room {room_id} did not terminate gracefully."
+                # 3. Wait for the game thread to finish if it's running
+                if room.game_thread and room.game_thread.is_alive():
+                    logger.info(
+                        f"Waiting for game thread in room {room_id} to terminate before removal"
                     )
+                    room.game_thread.join(timeout=2.0)  # Wait a bit
+                    if room.game_thread.is_alive():
+                        logger.warning(
+                            f"Game thread for room {room_id} did not terminate gracefully."
+                        )
 
-            # 4. Stop and clean up AI clients associated with this room
-            ai_to_remove = []
-            # Use list() to avoid modification during iteration if necessary, although it might not be strictly needed here
-            for ai_name, ai_client in list(self.rooms[room_id].ai_clients.items()):
-                # Check if ai_client.room exists before accessing id
-                if ai_client.room and ai_client.room.id == room_id:
-                    logger.debug(f"Stopping AI client {ai_name} in room {room_id}")
-                    ai_client.stop()
-                    ai_to_remove.append(ai_name)
+                # 4. Stop and clean up AI clients associated with this room
+                ai_to_remove = []
+                # Use list() to avoid modification during iteration if necessary, although it might not be strictly needed here
+                for ai_name, ai_client in list(self.rooms[room_id].ai_clients.items()):
+                    # Check if ai_client.room exists before accessing id
+                    if ai_client.room and ai_client.room.id == room_id:
+                        logger.debug(f"Stopping AI client {ai_name} in room {room_id}")
+                        ai_client.stop()
+                        ai_to_remove.append(ai_name)
 
-            for ai_name in ai_to_remove:
-                if ai_name in self.rooms[room_id].ai_clients:
-                    del self.rooms[room_id].ai_clients[ai_name]
-                if ai_name in self.rooms[room_id].used_ai_names:
-                    # Use discard to avoid KeyError if name somehow already removed
-                    self.rooms[room_id].used_ai_names.discard(ai_name)
+                for ai_name in ai_to_remove:
+                    if ai_name in self.rooms[room_id].ai_clients:
+                        del self.rooms[room_id].ai_clients[ai_name]
+                    if ai_name in self.rooms[room_id].used_ai_names:
+                        # Use discard to avoid KeyError if name somehow already removed
+                        self.rooms[room_id].used_ai_names.discard(ai_name)
 
-            # 5. Now remove the room itself
-            del self.rooms[room_id]
-            logger.info(f"Room {room_id} removed successfully")
-        else:
-            logger.warning(f"Attempted to remove non-existent room {room_id}")
+                # 5. Now remove the room itself
+                del self.rooms[room_id]
+                logger.info(f"Room {room_id} removed successfully")
+            else:
+                logger.warning(f"Attempted to remove non-existent room {room_id}")
+        except Exception as e:
+            logger.error(f"Error removing room {room_id}: {e}")
 
     def run(self):
         """Main server loop"""

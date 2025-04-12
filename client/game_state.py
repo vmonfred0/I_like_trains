@@ -71,10 +71,6 @@ class GameState:
                 self.client.leaderboard_height,
             )
 
-            logger.info(
-                f"Updated game dimensions: game width = {self.client.game_width}, screen width = {self.client.screen_width}"
-            )
-
             # Schedule window update instead of directly creating the window
             # This will be handled by the main thread
             self.client.update_game_window_size(
@@ -92,6 +88,11 @@ class GameState:
             logger.info(f"Cell size updated: {self.client.cell_size}")
             if self.game_mode == GameMode.AGENT and self.client.agent is not None:
                 self.client.agent.cell_size = self.client.cell_size
+
+        if "best_scores" in data:
+            self.client.best_scores = data["best_scores"]
+            if self.game_mode == GameMode.AGENT and self.client.agent is not None:
+                self.client.agent.best_scores = self.client.best_scores
 
         # Update the agent's state
         if self.game_mode == GameMode.AGENT and self.client.agent is not None:
@@ -150,7 +151,21 @@ class GameState:
         # Update waiting room data
         self.client.waiting_room_data = data
 
-        self.client.leaderboard_height = data.get("nb_players") * 10
+        nb_players = data.get("nb_players")
+        if (nb_players is not None):
+            if self.client.nb_players != nb_players:
+                self.client.nb_players = nb_players
+
+                new_width = max(self.client.screen_width, self.client.screen_width - (100 if nb_players > 10 else 0) + (nb_players//10 * 240))
+                new_height = min(self.client.screen_height + nb_players*37, self.client.screen_height + 370)
+                
+                self.client.update_game_window_size(
+                    width=new_width,
+                    height=new_height
+                )
+                logger.info(f"Updated game window size to {new_width}x{new_height}")
+
+            self.client.leaderboard_height = nb_players * 10
 
     def handle_death(self, data):
         """Handle cooldown data received from the server"""
@@ -163,7 +178,17 @@ class GameState:
             return
 
         # Log the cooldown
-        logger.info(f"Train is dead. Cooldown: {data['remaining']}s")
+        if data['reason'] == 'self_collision':
+            logger.info(f"Train died from collision with its own wagon. Cooldown: {data['remaining']}s")
+        elif data['reason'] == 'collision_with_train':
+            logger.info(f"Train died from collision with another train. Cooldown: {data['remaining']}s")
+        elif data['reason'] == 'collision_with_wagon':
+            logger.info(f"Train died from collision with another train's wagon. Cooldown: {data['remaining']}s")
+        elif data['reason'] == 'out_of_bounds':
+            logger.info(f"Train died from going out of bounds. Cooldown: {data['remaining']}s")
+        else:
+            logger.info(f"Train died for unknown reason: {data['reason']}. Cooldown: {data['remaining']}s")
+        
 
         self.client.is_dead = True
         self.client.death_time = time.time()
@@ -194,15 +219,6 @@ class GameState:
             self.handle_game_over(data)
         else:
             logger.warning("Unknown message type received: " + str(message_type))
-
-    def handle_drop_wagon_success(self, message):
-        """Handle successful passenger drop response from server"""
-        nickname = message.get("nickname", "")
-        position = message.get("position", None)
-
-        if nickname == self.client.agent.nickname:
-            logger.info(f"Successfully dropped a passenger at position {position}")
-            # The train state will be updated in the next state update
 
     def handle_game_over(self, data):
         """Handle game over data received from the server"""
