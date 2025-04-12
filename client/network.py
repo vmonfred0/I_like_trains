@@ -301,7 +301,9 @@ class NetworkManager:
                     # logger.trace("Socket timeout in receive_game_state, continuing to listen")
                     continue
                 else:
-                    logger.error(f"Error in receive_game_state thread: {e}")
+                    # If disconnect thread is not active
+                    if self.running:
+                        logger.error(f"Error in receive_game_state thread: {e}")
 
     def verify_connection(self):
         """Verify that the connection to the server is actually running on the specified port
