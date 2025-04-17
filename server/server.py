@@ -6,7 +6,7 @@ import logging
 import uuid
 import signal
 import random
-
+from common import stats_manager
 from common.config import Config
 from server.passenger import Passenger
 from server.room import Room
@@ -118,6 +118,7 @@ class Server:
             self.server_socket,
             self.send_cooldown_notification,
             self.remove_room,
+            self.addr_to_sciper,
         )
 
         logger.info(f"Created new room {room_id} with {nb_players_per_room} clients")
@@ -426,6 +427,9 @@ class Server:
             f"New client {nickname} (sciper: {agent_sciper}) connecting from {addr}"
         )
 
+        # --- Record Connection Stats ---
+        stats_manager.record_connection(agent_sciper, nickname)
+
         # Initialize client activity tracking
         self.client_last_activity[addr] = time.time()
 
@@ -717,6 +721,7 @@ class Server:
         self.disconnected_clients.add(addr)
 
         nickname = self.addr_to_name.get(addr, "Unknown client")
+        sciper = self.addr_to_sciper.get(addr) # Get sciper BEFORE deleting it
 
         # Only log at INFO level if this is a known client
         if nickname != "Unknown client":
@@ -764,15 +769,19 @@ class Server:
             # Log at debug level for unknown clients to reduce spam
             logger.debug(f"Unknown client disconnected due to {reason}: {addr}")
 
-        # Common cleanup for the disconnected client's address info - moved outside the room loop
-        # to ensure it happens even if client is not found in a room
-        if addr in self.addr_to_name:
-            del self.addr_to_name[addr]
+        # Record disconnection stats *after* getting sciper and *before* potential errors/returns
+        if sciper:
+            premature = (reason != "client quit") # Consider premature if not an explicit quit
+            logger.info(f"Calling record_disconnection for sciper {sciper}, premature={premature} (reason='{reason}')")
+            try:
+                stats_manager.record_disconnection(sciper, premature=premature)
+            except Exception as e:
+                logger.error(f"Error calling stats_manager.record_disconnection for {sciper}: {e}")
 
         # Clean up sciper information
         if addr in self.addr_to_sciper:
-            sciper = self.addr_to_sciper[addr]
-            if sciper in self.sciper_to_addr:
+            # sciper = self.addr_to_sciper[addr] # Moved up
+            if sciper and sciper in self.sciper_to_addr:
                 del self.sciper_to_addr[sciper]
             del self.addr_to_sciper[addr]
 
