@@ -59,7 +59,7 @@ class Room:
         self.send_cooldown_notification = send_cooldown_notification
         self.remove_room = remove_room
         self.addr_to_sciper = addr_to_sciper
-        self.handle_client_disconnection = record_disconnection
+        self.record_disconnection = record_disconnection
 
         self.clients = {}  # {addr: nickname}
         self.client_game_modes = {}  # {addr: game_mode}
