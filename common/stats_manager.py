@@ -3,10 +3,13 @@ import os
 import datetime
 import logging
 import threading
+import pytz
 
 STATS_DIR = "stats"
 DB_FILENAME = "game_stats.db"  # Single database file
 DB_PATH = os.path.join(STATS_DIR, DB_FILENAME)
+
+LOCAL_TZ = pytz.timezone('Europe/Paris')
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +33,7 @@ def close_db_connection(exception=None):
 
 def _initialize_database():
     """Initializes the SQLite databases and creates/updates tables."""
-    try:
+    try:        
         os.makedirs(STATS_DIR, exist_ok=True)
         logger.debug(f"Initializing stats directory at {STATS_DIR}")
 
@@ -226,7 +229,7 @@ _initialize_database()
 # --- Functions to record stats ---
 def record_connection(sciper: str, nickname: str):
     """Records a client connection, updates client info, and connection counts."""
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(LOCAL_TZ)
     today = now.strftime("%Y-%m-%d")
     current_hour_str = now.strftime("%H:00")
     logger.info(f"Recording connection for {nickname} ({sciper}) at {now}")
@@ -298,7 +301,7 @@ def record_disconnection(
     premature: bool
 ):
     """Records a client disconnection, updates playtime and disconnect count."""
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(LOCAL_TZ)
     logger.info(f"Recording disconnection for {sciper} at {now}. Premature: {premature}")
 
     # Calculate duration based on last connection time
@@ -313,7 +316,7 @@ def record_disconnection(
         if result and result["last_connection_time"]:
             last_conn_time_str = result["last_connection_time"]
             logger.debug(f"[Disconnect Debug] Fetched last_connection_time string: '{last_conn_time_str}' for {sciper}")
-            last_conn_time = datetime.datetime.fromisoformat(last_conn_time_str)
+            last_conn_time = datetime.datetime.fromisoformat(last_conn_time_str).replace(tzinfo=pytz.utc).astimezone(LOCAL_TZ)
             duration_seconds = (now - last_conn_time).total_seconds()
             # Ensure duration is not negative (e.g., clock skew or bad data)
             duration_seconds = max(0, duration_seconds)
@@ -409,7 +412,8 @@ def record_bot_vs_human_score(human_sciper: str, bot_nickname: str, human_score:
     p1_id, p2_id = human_sciper, bot_nickname
     p1_score, p2_score = human_score, bot_score
 
-    now_iso = datetime.datetime.now().isoformat()
+    now = datetime.datetime.now(LOCAL_TZ)
+    now_iso = now.isoformat()
     logger.debug(
         f"Recording bot vs human score: {p1_id} ({p1_score}) vs {p2_id} ({p2_score})"
     )

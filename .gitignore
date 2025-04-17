@@ -7,8 +7,8 @@ player_scores.json
 
 config.json
 common/agents/staff_*
-stats/game_stats.db
 Dockerfile
 .dockerignore
 
+stats/
 stats-docker/
