@@ -53,7 +53,7 @@ def _initialize_database():
                 nickname TEXT,
                 wins INTEGER DEFAULT 0,
                 losses INTEGER DEFAULT 0,
-                total_disconnections INTEGER DEFAULT 0,
+                total_connections INTEGER DEFAULT 0,
                 total_playtime_seconds INTEGER DEFAULT 0,
                 last_connection_time DATETIME,
                 last_disconnection_time DATETIME
@@ -70,24 +70,57 @@ def _initialize_database():
                 logger.info("Adding missing column 'last_disconnection_time' to 'clients' table.")
                 cursor.execute("ALTER TABLE clients ADD COLUMN last_disconnection_time DATETIME")
             
-            # Handle disconnects -> total_disconnections rename/addition
-            if 'disconnects' in client_columns and 'total_disconnections' not in client_columns:
-                logger.info("Renaming column 'disconnects' to 'total_disconnections' in 'clients' table.")
-                cursor.execute("ALTER TABLE clients RENAME COLUMN disconnects TO total_disconnections")
-            elif 'disconnects' not in client_columns and 'total_disconnections' not in client_columns:
-                 logger.info("Adding missing column 'total_disconnections' to 'clients' table.")
-                 cursor.execute("ALTER TABLE clients ADD COLUMN total_disconnections INTEGER DEFAULT 0")
-            elif 'disconnects' in client_columns and 'total_disconnections' in client_columns:
-                 logger.warning("Both 'disconnects' and 'total_disconnections' columns exist. Leaving as is.")
+            # Handle total_connections / total_disconnections
+            if 'total_connections' not in client_columns:
+                if 'total_disconnections' in client_columns:
+                    logger.info("Renaming column 'total_disconnections' to 'total_connections' in 'clients' table.")
+                    cursor.execute("ALTER TABLE clients RENAME COLUMN total_disconnections TO total_connections")
+                else:
+                    logger.info("Adding missing column 'total_connections' to 'clients' table.")
+                    cursor.execute("ALTER TABLE clients ADD COLUMN total_connections INTEGER DEFAULT 0")
+            elif 'total_disconnections' in client_columns:
+                # Both exist? Should not happen, but remove total_disconnections if it does
+                logger.warning("Both 'total_connections' and 'total_disconnections' columns exist. Removing 'total_disconnections'.")
+                try:
+                    # SQLite requires a complex workaround for dropping columns before 3.35.0
+                    # Create a new table without the column, copy data, drop old, rename new.
+                    cursor.execute("PRAGMA foreign_keys=off")
+                    conn.commit() # Commit before schema changes
+                    cursor.execute("BEGIN TRANSACTION")
+                    cursor.execute("""
+                        CREATE TABLE clients_new (
+                            sciper TEXT PRIMARY KEY,
+                            nickname TEXT,
+                            wins INTEGER DEFAULT 0,
+                            losses INTEGER DEFAULT 0,
+                            total_connections INTEGER DEFAULT 0,
+                            total_playtime_seconds INTEGER DEFAULT 0,
+                            last_connection_time DATETIME,
+                            last_disconnection_time DATETIME
+                        )
+                    """)
+                    cols_to_copy = [c for c in client_columns if c != 'total_disconnections']
+                    cols_str = ', '.join(cols_to_copy)
+                    cursor.execute(f"INSERT INTO clients_new ({cols_str}) SELECT {cols_str} FROM clients")
+                    cursor.execute("DROP TABLE clients")
+                    cursor.execute("ALTER TABLE clients_new RENAME TO clients")
+                    cursor.execute("COMMIT")
+                    cursor.execute("PRAGMA foreign_keys=on")
+                    logger.info("Successfully removed 'total_disconnections' by recreating 'clients' table.")
+                    conn.commit() # Commit after schema changes
+                except sqlite3.Error as oe:
+                    conn.rollback() # Rollback transaction on error
+                    cursor.execute("PRAGMA foreign_keys=on") # Ensure foreign keys are re-enabled
+                    logger.error(f"Failed to remove column 'total_disconnections': {oe}")
 
             # Ensure total_playtime_seconds exists (might have been missed if table was very old)
             if 'total_playtime_seconds' not in client_columns:
                 logger.info("Adding missing column 'total_playtime_seconds' to 'clients' table.")
                 cursor.execute("ALTER TABLE clients ADD COLUMN total_playtime_seconds INTEGER DEFAULT 0")
             
-            # Dropping total_connections column if it exists
-            if 'total_connections' in client_columns:
-                 logger.info("Dropping column 'total_connections' from 'clients' table.")
+            # Dropping total_disconnections column if it exists
+            if 'total_disconnections' in client_columns:
+                 logger.info("Dropping column 'total_disconnections' from 'clients' table.")
                  try:
                      # SQLite requires a complex workaround for dropping columns before 3.35.0
                      # Create a new table without the column, copy data, drop old, rename new.
@@ -101,25 +134,25 @@ def _initialize_database():
                              nickname TEXT,
                              wins INTEGER DEFAULT 0,
                              losses INTEGER DEFAULT 0,
-                             total_disconnections INTEGER DEFAULT 0,
+                             total_connections INTEGER DEFAULT 0,
                              total_playtime_seconds INTEGER DEFAULT 0,
                              last_connection_time DATETIME,
                              last_disconnection_time DATETIME
                          )
                      """)
-                     cols_to_copy = [c for c in client_columns if c != 'total_connections']
+                     cols_to_copy = [c for c in client_columns if c != 'total_disconnections']
                      cols_str = ', '.join(cols_to_copy)
                      cursor.execute(f"INSERT INTO clients_new ({cols_str}) SELECT {cols_str} FROM clients")
                      cursor.execute("DROP TABLE clients")
                      cursor.execute("ALTER TABLE clients_new RENAME TO clients")
                      cursor.execute("COMMIT")
                      cursor.execute("PRAGMA foreign_keys=on")
-                     logger.info("Successfully dropped 'total_connections' by recreating 'clients' table.")
+                     logger.info("Successfully dropped 'total_disconnections' by recreating 'clients' table.")
                      conn.commit() # Commit after schema changes
                  except sqlite3.Error as oe:
                      conn.rollback() # Rollback transaction on error
                      cursor.execute("PRAGMA foreign_keys=on") # Ensure foreign keys are re-enabled
-                     logger.error(f"Failed to drop column 'total_connections': {oe}")
+                     logger.error(f"Failed to drop column 'total_disconnections': {oe}")
 
         # Re-fetch columns after potential changes
         cursor.execute("PRAGMA table_info(clients)")
@@ -205,11 +238,12 @@ def record_connection(sciper: str, nickname: str):
         logger.debug(f"Executing INSERT OR UPDATE for client {sciper}...")
         cursor.execute(
             """
-            INSERT INTO clients (sciper, nickname, last_connection_time)
-            VALUES (?, ?, ?)
+            INSERT INTO clients (sciper, nickname, last_connection_time, total_connections)
+            VALUES (?, ?, ?, 1)
             ON CONFLICT(sciper) DO UPDATE SET
                 nickname = excluded.nickname,
-                last_connection_time = excluded.last_connection_time
+                last_connection_time = excluded.last_connection_time,
+                total_connections = total_connections + 1
         """,
             (sciper, nickname, now),
         )
@@ -278,10 +312,11 @@ def record_disconnection(
         result = cursor.fetchone()
         if result and result["last_connection_time"]:
             last_conn_time_str = result["last_connection_time"]
+            logger.debug(f"[Disconnect Debug] Fetched last_connection_time string: '{last_conn_time_str}' for {sciper}")
             last_conn_time = datetime.datetime.fromisoformat(last_conn_time_str)
             duration_seconds = (now - last_conn_time).total_seconds()
             # Ensure duration is not negative (e.g., clock skew or bad data)
-            duration_seconds = max(0, duration_seconds) 
+            duration_seconds = max(0, duration_seconds)
             logger.debug(f"[Disconnect Debug] Sciper: {sciper}, LastConnTime: {last_conn_time}, Now: {now}, Calculated Duration: {duration_seconds}s")
         else:
             logger.warning(f"Could not find last_connection_time for {sciper} to calculate duration.")
@@ -292,12 +327,13 @@ def record_disconnection(
             " last_disconnection_time = ?"
         )
         # Use rounded duration_seconds for the update
-        params = [round(duration_seconds), now] 
-        logger.debug(f"[Disconnect Debug] Base params for update: {params}")
+        # Use 'now' directly for last_disconnection_time
+        current_time_for_db = now 
+        params = [round(duration_seconds), current_time_for_db]
+        logger.debug(f"[Disconnect Debug] Base params for update: playtime_add={params[0]}, last_disconnect_time={params[1]}")
 
-        if premature:
-            update_query += ", total_disconnections = total_disconnections + 1"
-            logger.debug("[Disconnect Debug] Added premature disconnection increment.")
+        # We no longer update total_disconnections, as we're using total_connections instead
+        # The premature flag is now ignored for column updates
 
         update_query += " WHERE sciper = ?"
         params.append(sciper)
@@ -305,8 +341,11 @@ def record_disconnection(
         logger.debug(f"[Disconnect Debug] Final params: {tuple(params)}")
 
         cursor.execute(update_query, tuple(params))
+        rowcount = cursor.rowcount # Get affected row count
+        logger.debug(f"[Disconnect Debug] UPDATE affected {rowcount} row(s) for sciper {sciper}.")
+
         conn.commit() # Commit the update
-        logger.info(f"[Disconnect Commit] Committed playtime/disconnection update for {sciper} at {now}.") # Log after commit
+        logger.info(f"[Disconnect Commit] Committed playtime/disconnection update for {sciper} at {current_time_for_db}. Rowcount was: {rowcount}.") # Log after commit
 
     except sqlite3.Error as e:
         logger.error(
@@ -413,7 +452,7 @@ def get_stats_as_string() -> str:
             output.append("No client data available.")
         else:
             output.append(
-                "SCIPER | Nickname         | Wins | Losses | Disc. | Playtime (H:M:S) | Last Connection     | Last Disconnection"
+                "SCIPER | Nickname         | Wins | Losses | Conn. | Playtime (H:M:S) | Last Connection     | Last Disconnection"
             )
             output.append(
                 "-" * 110
@@ -426,7 +465,7 @@ def get_stats_as_string() -> str:
 
                 output.append(
                     f"{client['sciper']:<6} | {client['nickname']:<16} | {client['wins']:<4} | {client['losses']:<6} | "
-                    f"{client['total_disconnections']:<5} | {playtime_hms:<16} | {str(last_conn):<19} | {str(last_disc)}"
+                    f"{client['total_connections']:<5} | {playtime_hms:<16} | {str(last_conn):<19} | {str(last_disc)}"
                 )
 
     except sqlite3.Error as e:
@@ -454,9 +493,16 @@ def get_stats_as_string() -> str:
             )
             output.append("-" * 70)
             for score in scores:
+                # Format timestamp to HH:MM
+                try:
+                    ts_dt = datetime.datetime.fromisoformat(score['timestamp'])
+                    formatted_ts = ts_dt.strftime('%H:%M')
+                except (ValueError, TypeError):
+                    formatted_ts = score['timestamp'] # Fallback if parsing fails
+
                 output.append(
                     f"{score['human_sciper']:<12} | {score['bot_nickname']:<16} | "
-                    f"{score['human_score']:<7} | {score['bot_score']:<7} | {score['timestamp']}"
+                    f"{score['human_score']:<7} | {score['bot_score']:<7} | {formatted_ts:<5}" # Display HH:MM
                 )
     except sqlite3.Error as e:
         logger.error(f"Error retrieving bot vs human scores: {e}")

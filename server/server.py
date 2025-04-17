@@ -119,6 +119,7 @@ class Server:
             self.send_cooldown_notification,
             self.remove_room,
             self.addr_to_sciper,
+            self.handle_client_disconnection,
         )
 
         logger.info(f"Created new room {room_id} with {nb_players_per_room} clients")
@@ -712,6 +713,7 @@ class Server:
 
     def handle_client_disconnection(self, addr, reason="unknown"):
         """Handle client disconnection - centralized method to avoid code duplication"""
+        logger.debug(f"Handling client disconnection for {addr} due to {reason}")
         # Check if client is already marked as disconnected
         if addr in self.disconnected_clients:
             # Already disconnected, no need to process again
