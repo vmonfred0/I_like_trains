@@ -188,9 +188,9 @@ class Room:
             final_scores.append({"name": nickname, "best_score": best_score})
 
             # Update best score in the scores file
-            if self.game.high_score_all_time.update(nickname, best_score):
-                scores_updated = True
-                logger.info(f"Updated best score for {nickname}: {best_score}")
+            # if self.game.high_score_all_time.update(nickname, best_score):
+            #     scores_updated = True
+            #     logger.info(f"Updated best score for {nickname}: {best_score}")
 
             participant_id = None
             is_human = False
@@ -335,8 +335,8 @@ class Room:
                     # No call for human-human or bot-bot pairs as last_match_scores was removed
 
         # Save scores if any were updated
-        if scores_updated:
-            self.game.high_score_all_time.save()
+        # if scores_updated:
+        #     self.game.high_score_all_time.save()
 
         # Create game over message
         game_over_data = {
@@ -345,7 +345,7 @@ class Room:
                 "message": "Game is over. Time limit reached.",
                 "final_scores": final_scores,
                 "duration": self.config.game_duration_seconds,
-                "best_scores": self.game.high_score_all_time.get(),
+                "best_scores": self.game.best_scores,
             },
         }
 
