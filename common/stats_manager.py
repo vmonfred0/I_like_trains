@@ -228,7 +228,7 @@ def record_connection(sciper: str, nickname: str):
     """Records a client connection, updates client info, and connection counts."""
     now = datetime.datetime.now()
     today = now.strftime("%Y-%m-%d")
-    current_hour_str = now.strftime("%Y-%m-%d %H:00:00")
+    current_hour_str = now.strftime("%H:00")
     logger.info(f"Recording connection for {nickname} ({sciper}) at {now}")
 
     # Update Client DB
@@ -528,23 +528,16 @@ def get_stats_as_string() -> str:
 
         # Get hourly connections (last 24 hours for brevity)
         output.append("\nConnections per Hour (Last 24 Hours):")
-        now_dt = datetime.datetime.now()
-        twenty_four_hours_ago = (now_dt - datetime.timedelta(hours=24)).strftime(
-            "%Y-%m-%d %H:00:00"
-        )
         cursor.execute(
-            "SELECT strftime('%H', datetime) as hour_of_day, SUM(count) as total_count " # Use strftime('%H', ...) instead of SUBSTR
+            "SELECT datetime as hour, SUM(count) as total_count "
             "FROM connections_hourly "
-            "WHERE datetime >= ? "
-            "GROUP BY hour_of_day ORDER BY hour_of_day ASC", # Group/Order by the extracted hour
-            (twenty_four_hours_ago,),
+            "GROUP BY hour ORDER BY hour ASC" # Group/Order by the hour
         )
         hourly = cursor.fetchall()
         if hourly:
             for row in hourly:
-                 # Format hour_of_day (e.g., '19') to 'HH:00' (e.g., '19:00')
-                formatted_hour = f"{row['hour_of_day']}:00"
-                output.append(f"  {formatted_hour}: {row['total_count']}") # Display hour only
+                 # hour is already in the format 'HH:00'
+                output.append(f"  {row['hour']}: {row['total_count']}") # Display hour only
         else:
             output.append("  No hourly connection data for the last 24 hours.")
 
