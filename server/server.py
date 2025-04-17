@@ -119,7 +119,7 @@ class Server:
             self.send_cooldown_notification,
             self.remove_room,
             self.addr_to_sciper,
-            self.handle_client_disconnection,
+            self.record_disconnection,
         )
 
         logger.info(f"Created new room {room_id} with {nb_players_per_room} clients")
@@ -261,6 +261,7 @@ class Server:
 
     def send_disconnect(self, addr, message="Unknown client or invalid message format"):
         """Disconnect a client from the server"""
+        logger.debug(f"Sending disconnect request to unknown client {addr}")
         # ask the client to disconnect
         disconnect_message = {
             "type": "disconnect",
@@ -771,14 +772,7 @@ class Server:
             # Log at debug level for unknown clients to reduce spam
             logger.debug(f"Unknown client disconnected due to {reason}: {addr}")
 
-        # Record disconnection stats *after* getting sciper and *before* potential errors/returns
-        if sciper:
-            premature = (reason != "client quit") # Consider premature if not an explicit quit
-            logger.info(f"Calling record_disconnection for sciper {sciper}, premature={premature} (reason='{reason}')")
-            try:
-                stats_manager.record_disconnection(sciper, premature=premature)
-            except Exception as e:
-                logger.error(f"Error calling stats_manager.record_disconnection for {sciper}: {e}")
+        self.record_disconnection(sciper, reason)
 
         # Clean up sciper information
         if addr in self.addr_to_sciper:
@@ -796,6 +790,16 @@ class Server:
 
         if addr in self.ping_responses:
             del self.ping_responses[addr]
+
+    def record_disconnection(self, sciper, reason):
+        # Record disconnection stats *after* getting sciper and *before* potential errors/returns
+        if sciper:
+            premature = (reason != "client quit") # Consider premature if not an explicit quit
+            logger.info(f"Calling record_disconnection for sciper {sciper}, premature={premature} (reason='{reason}')")
+            try:
+                stats_manager.record_disconnection(sciper, premature=premature)
+            except Exception as e:
+                logger.error(f"Error calling stats_manager.record_disconnection for {sciper}: {e}")
 
     def remove_room(self, room_id):
         """Remove a room from the server"""
@@ -885,6 +889,7 @@ class Server:
             for addr in client_addresses:
                 # try-except around send_disconnect in case socket is already bad
                 try:
+                    logger.debug(f"Disconnecting client {addr}")
                     self.send_disconnect(addr, "Server shutting down")
                     # Optional small delay to increase chance of message delivery
                     time.sleep(0.01)

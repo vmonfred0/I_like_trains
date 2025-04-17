@@ -49,7 +49,7 @@ class Room:
         send_cooldown_notification,
         remove_room,
         addr_to_sciper,
-        handle_client_disconnection,
+        record_disconnection,
     ):
         self.config = config
         self.id = room_id
@@ -59,7 +59,7 @@ class Room:
         self.send_cooldown_notification = send_cooldown_notification
         self.remove_room = remove_room
         self.addr_to_sciper = addr_to_sciper
-        self.handle_client_disconnection = handle_client_disconnection
+        self.handle_client_disconnection = record_disconnection
 
         self.clients = {}  # {addr: nickname}
         self.client_game_modes = {}  # {addr: game_mode}
@@ -377,7 +377,7 @@ class Room:
             # Call handle_client_disconnection for human clients
             try:
                 logger.info(f"Recording end-of-game stats for client at {addr}")
-                self.handle_client_disconnection(addr, "game_over")
+                self.record_disconnection(self.addr_to_sciper[addr], "game_over")
             except Exception as e:
                 logger.error(f"Error recording end-of-game stats for {addr}: {e}")
 
