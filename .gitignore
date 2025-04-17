@@ -10,3 +10,5 @@ common/agents/staff_*
 stats/game_stats.db
 Dockerfile
 .dockerignore
+
+stats-docker/
