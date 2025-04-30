@@ -183,7 +183,7 @@ class Client:
                 if self.network.connect():
                     # Verify connection by attempting to receive data
                     if self.network.verify_connection():
-                        logger.info("Connected to server successfully")
+                        logger.info(f"Connected to server at {self.config.host}:{self.config.port}")
                         connection_successful = True
                         break
                     else:
