@@ -1,3 +1,5 @@
+import os
+import sys
 import socket
 import json
 import threading
@@ -57,6 +59,10 @@ logger = setup_server_logger()
 class Server:
     def __init__(self, config: Config):
         self.config = config.server
+
+        # Verify that all agent files exist before proceeding
+        self.verify_agent_files(self.config)
+
         self.rooms = {}  # {room_id: Room}
         self.lock = threading.Lock()
 
@@ -100,6 +106,28 @@ class Server:
         accept_thread = threading.Thread(target=self.accept_clients, daemon=True)
         accept_thread.start()
         logger.info(f"Server started on {self.config.host}:{self.config.port}")
+
+    def verify_agent_files(self, config):
+        """
+        Verifies that all agent files specified in the configuration exist in the common/agents directory.
+        Raises an error and exits the server if any file is missing.
+        """
+
+        agents_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "common", "agents"
+        )
+
+        for agent in config.agents:
+            agent_file_path = os.path.join(agents_dir, agent.agent_file_name)
+            if not os.path.exists(agent_file_path):
+                error_msg = f"Agent file not found: {agent.agent_file_name} for agent {agent.nickname}"
+                logger.error(error_msg)
+                print(f"\nERROR: {error_msg}")
+                print(f"The file should be located at: {agent_file_path}")
+                print("Server is shutting down.")
+                sys.exit(1)
+
+        logger.info("All agent files verified successfully")
 
     def create_room(self, running):
         """
