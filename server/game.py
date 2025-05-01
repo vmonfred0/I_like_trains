@@ -72,6 +72,8 @@ class Game:
         self.train_colors = {}  # {nickname: (train_color, wagon_color)}
         self.passengers = []
         self.dead_trains = {}  # {nickname: death_time}
+        self.train_death_ticks = {}  # {nickname: death_tick} - For tick-based cooldown
+        self.current_tick = 0  # Current tick counter
 
         self.desired_passengers = 0
 
@@ -154,6 +156,7 @@ class Game:
         
         # Initialize game state
         self.game_started = True
+        self.current_tick = 0  # Reset tick counter at the start
         
         # Make sure trains are added and initialized correctly
         if not self.ai_clients:
@@ -185,10 +188,14 @@ class Game:
             # Update game state
             self.update()
             
+            # Increment tick counter
+            self.current_tick += 1
+            
             # Log progress periodically
             if update_count % 600 == 0:
                 elapsed = time.time() - start_time
                 logger.info(f"Grading mode progress: {update_count}/{total_updates} updates ({update_count/total_updates*100:.1f}%) in {elapsed:.2f} seconds")
+                logger.info(f"Current tick: {self.current_tick}")
                 # Show current scores
                 if self.best_scores:
                     logger.info(f"Current scores: {self.best_scores}")
@@ -337,7 +344,13 @@ class Game:
         """Remove a train and update game size"""
         if nickname in self.trains:
             # Register the death time
-            self.dead_trains[nickname] = time.time()
+            if self.config.grading_mode:
+                # In grading mode, use tick-based cooldown
+                self.train_death_ticks[nickname] = self.current_tick
+                logger.debug(f"Train {nickname} died at tick {self.current_tick}, reason: {death_reason}")
+            else:
+                # In normal mode, use time-based cooldown
+                self.dead_trains[nickname] = time.time()
 
             # Clean up the last delivery time for this train
             if nickname in self.last_delivery_times:
@@ -353,14 +366,21 @@ class Game:
                 client = self.ai_clients[nickname]
                 # Change the train's state
                 client.is_dead = True
-                client.death_time = time.time()
+                if self.config.grading_mode:
+                    # In grading mode, track death by tick
+                    client.death_tick = self.current_tick
+                else:
+                    # In normal mode, track death by time
+                    client.death_time = time.time()
                 client.waiting_for_respawn = True
                 client.respawn_cooldown = self.config.respawn_cooldown_seconds
+            return True
         else:
             logger.error(f"Train {nickname} not found in game")
             return False
 
     def handle_train_death(self, train_nicknames, death_reason):
+        """Handle the death of one or more trains"""
         for nickname in train_nicknames:
             train = self.trains.get(nickname)
             if train:
@@ -373,11 +393,23 @@ class Game:
 
     def get_train_cooldown(self, nickname):
         """Get remaining cooldown time for a train"""
-        if nickname in self.dead_trains:
-            elapsed = time.time() - self.dead_trains[nickname]
-            remaining = max(0, self.config.respawn_cooldown_seconds - elapsed)
-            return remaining
-        return 0
+        # In grading mode, use tick-based cooldown
+        if self.config.grading_mode:
+            if nickname in self.train_death_ticks:
+                ticks_elapsed = self.current_tick - self.train_death_ticks[nickname]
+                # Convert respawn_cooldown_seconds to ticks
+                cooldown_ticks = int(self.config.respawn_cooldown_seconds * self.config.tick_rate)
+                remaining_ticks = max(0, cooldown_ticks - ticks_elapsed)
+                # Return remaining ticks as seconds for consistency
+                return remaining_ticks / self.config.tick_rate
+            return 0
+        # In normal mode, use time-based cooldown
+        else:
+            if nickname in self.dead_trains:
+                elapsed = time.time() - self.dead_trains[nickname]
+                remaining = max(0, self.config.respawn_cooldown_seconds - elapsed)
+                return remaining
+            return 0
 
     def contains_train(self, nickname):
         """Check if a train is in the game"""
@@ -435,13 +467,32 @@ class Game:
             # trains_to_remove = []
             self.check_collisions()
 
+            # Check for train deaths based on tick counter
+            death_ticks_to_check = self.train_death_ticks.copy()
+            for nickname, death_tick in death_ticks_to_check.items():
+                cooldown_ticks = int(self.config.respawn_cooldown_seconds * self.config.tick_rate)
+                if self.current_tick >= death_tick + cooldown_ticks:
+                    logger.info(f"Train {nickname} cooldown expired at tick {self.current_tick}")
+                    # Remove from death ticks dictionary
+                    if nickname in self.train_death_ticks:
+                        del self.train_death_ticks[nickname]
+                    
+                    # If the train is an AI, handle respawn
+                    if nickname in self.ai_clients:
+                        ai_client = self.ai_clients[nickname]
+                        if ai_client.is_dead and ai_client.waiting_for_respawn:
+                            logger.info(f"Respawning AI client {nickname} after cooldown")
+                            if self.add_train(nickname):
+                                ai_client.waiting_for_respawn = False
+                                ai_client.is_dead = False
+                                logger.debug(f"AI client {nickname} respawned after cooldown")
+
             # If in grading mode, directly update all AI agents
             if self.config.grading_mode:
                 if not self.ai_clients:
                     logger.debug("No AI clients to update in grading mode")
                     return
                     
-                logger.debug(f"Updating {len(self.ai_clients)} AI clients in grading mode")
                 for ai_name, ai_client in self.ai_clients.items():
                     # Update agent state only if train is alive and game contains train
                     if not ai_client.is_dead and self.contains_train(ai_name):
@@ -451,6 +502,7 @@ class Game:
                     
                     # Handle respawn in grading mode
                     elif ai_client.is_dead and ai_client.waiting_for_respawn:
+                        logger.debug(f"AI client {ai_name} is dead and waiting for respawn")
                         # In grading mode, respawn immediately after death
                         cooldown = self.get_train_cooldown(ai_name)
                         if cooldown <= 0:
