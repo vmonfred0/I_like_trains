@@ -114,10 +114,31 @@ class Room:
             self.fill_with_bots()
             self.add_all_trains()
 
-            # Start the game thread
-            self.game_thread = threading.Thread(target=self.game.run)
-            self.game_thread.daemon = True
-            self.game_thread.start()
+            # Check if we're in grading mode
+            if self.config.grading_mode:
+                logger.info(f"Starting game in grading mode for room {self.id}")
+                
+                # In grading mode, make sure we have at least one bot
+                if len(self.ai_clients) == 0 and len(self.config.agents) > 0:
+                    logger.info("No AI clients found, adding one for grading mode")
+                    agent = self.config.agents[0]
+                    ai_nickname = self.get_available_ai_name(agent)
+                    ai_agent_file_name = agent.agent_file_name
+                    self.add_ai(ai_nickname=ai_nickname, ai_agent_file_name=ai_agent_file_name)
+                
+                # Log AI clients before running
+                logger.info(f"AI clients before running grading mode: {self.ai_clients.keys()}")
+                logger.info(f"Game AI clients before running: {self.game.ai_clients.keys()}")
+                
+                # In grading mode, we don't use threads for bots and run the game directly
+                self.game.run_grading_mode()
+                # After the game completes, end it
+                self.end_game()
+            else:
+                # Normal mode - start the game thread
+                self.game_thread = threading.Thread(target=self.game.run)
+                self.game_thread.daemon = True
+                self.game_thread.start()
 
             # Record the game start time
             self.game_start_time = time.time()
