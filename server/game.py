@@ -74,6 +74,8 @@ class Game:
         self.dead_trains = {}  # {nickname: death_time}
         self.train_death_ticks = {}  # {nickname: death_tick} - For tick-based cooldown
         self.current_tick = 0  # Current tick counter
+        self.start_time_ticks = 0  # Start time in ticks
+        self.start_time = None  # Track when the game starts
 
         self.desired_passengers = 0
 
@@ -148,66 +150,6 @@ class Game:
         while self.running:
             self.update()
             time.sleep(1 / self.config.tick_rate)
-
-    def run_grading_mode(self):
-        """Run the game in grading mode - as fast as possible without threads or sleep"""
-        logger.info("Running game in grading mode")
-        start_time = time.time()
-        
-        # Initialize game state
-        self.game_started = True
-        self.current_tick = 0  # Reset tick counter at the start
-        
-        # Make sure trains are added and initialized correctly
-        if not self.ai_clients:
-            logger.warning("No AI clients found in game for grading mode")
-        else:
-            logger.info(f"Found {len(self.ai_clients)} AI clients for grading mode: {list(self.ai_clients.keys())}")
-            
-        for ai_name, ai_client in self.ai_clients.items():
-            if ai_name not in self.trains:
-                logger.info(f"Adding train for AI client {ai_name}")
-                self.add_train(ai_name)
-            # Update agent state
-            ai_client.update_state()
-            
-            # Log train status
-            if ai_name in self.trains:
-                logger.info(f"Train {ai_name} initialized at position {self.trains[ai_name].position}")
-            else:
-                logger.warning(f"Failed to add train for AI client {ai_name}")
-        
-        # Calculate total number of updates for the game duration
-        total_updates = int(self.config.game_duration_seconds * self.config.tick_rate)
-        
-        # Run the simulation
-        for update_count in range(total_updates):
-            if not self.running:
-                break
-                
-            # Update game state
-            self.update()
-            
-            # Increment tick counter
-            self.current_tick += 1
-            
-            # Log progress periodically
-            if update_count % 600 == 0:
-                elapsed = time.time() - start_time
-                logger.info(f"Grading mode progress: {update_count}/{total_updates} updates ({update_count/total_updates*100:.1f}%) in {elapsed:.2f} seconds")
-                logger.info(f"Current tick: {self.current_tick}")
-                # Show current scores
-                if self.best_scores:
-                    logger.info(f"Current scores: {self.best_scores}")
-                # Show train positions
-                for train_name, train in self.trains.items():
-                    logger.info(f"Train {train_name} position: {train.position}, alive: {train.alive}, score: {train.score}")
-            
-        end_time = time.time()
-        total_time = end_time - start_time
-        logger.info(f"Grading mode completed {total_updates} updates in {total_time:.2f} seconds")
-        logger.info(f"Simulation speed: {total_updates/total_time:.1f} updates/second")
-        logger.info(f"Final scores: {self.best_scores}")
 
     def is_position_safe(self, x, y):
         """Check if a position is safe for spawning"""
@@ -394,22 +336,14 @@ class Game:
     def get_train_cooldown(self, nickname):
         """Get remaining cooldown time for a train"""
         # In grading mode, use tick-based cooldown
-        if self.config.grading_mode:
-            if nickname in self.train_death_ticks:
-                ticks_elapsed = self.current_tick - self.train_death_ticks[nickname]
-                # Convert respawn_cooldown_seconds to ticks
-                cooldown_ticks = int(self.config.respawn_cooldown_seconds * self.config.tick_rate)
-                remaining_ticks = max(0, cooldown_ticks - ticks_elapsed)
-                # Return remaining ticks as seconds for consistency
-                return remaining_ticks / self.config.tick_rate
-            return 0
-        # In normal mode, use time-based cooldown
-        else:
-            if nickname in self.dead_trains:
-                elapsed = time.time() - self.dead_trains[nickname]
-                remaining = max(0, self.config.respawn_cooldown_seconds - elapsed)
-                return remaining
-            return 0
+        if nickname in self.train_death_ticks:
+            ticks_elapsed = self.current_tick - self.train_death_ticks[nickname]
+            # Convert respawn_cooldown_seconds to ticks
+            cooldown_ticks = int(self.config.respawn_cooldown_seconds * self.config.tick_rate)
+            remaining_ticks = max(0, cooldown_ticks - ticks_elapsed)
+            # Return remaining ticks as seconds for consistency
+            return remaining_ticks / self.config.tick_rate
+        return 0
 
     def contains_train(self, nickname):
         """Check if a train is in the game"""
@@ -496,13 +430,11 @@ class Game:
                 for ai_name, ai_client in self.ai_clients.items():
                     # Update agent state only if train is alive and game contains train
                     if not ai_client.is_dead and self.contains_train(ai_name):
-                        logger.debug(f"Updating AI client {ai_name}")
                         # Call the update_cycle method directly instead of updating manually
                         ai_client.update_cycle()
                     
                     # Handle respawn in grading mode
                     elif ai_client.is_dead and ai_client.waiting_for_respawn:
-                        logger.debug(f"AI client {ai_name} is dead and waiting for respawn")
                         # In grading mode, respawn immediately after death
                         cooldown = self.get_train_cooldown(ai_name)
                         if cooldown <= 0:
