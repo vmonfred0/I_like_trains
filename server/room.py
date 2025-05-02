@@ -177,8 +177,6 @@ class Room:
         self.game_thread = threading.Thread(target=self.run_game)
         self.game_thread.daemon = True
         self.game_thread.start()
-        # After the game completes, end it
-        self.end_game()
 
         logger.info(
             f"Game started in room {self.id} with {len(self.clients)} clients"
@@ -189,13 +187,20 @@ class Room:
         # Calculate total number of updates for the game duration
         total_updates = int(self.config.game_duration_seconds * self.config.tick_rate)
         
+        # Calculate sleep time between updates based on tick rate
+        sleep_time = 1.0 / self.config.tick_rate
+        
         # Run the simulation
+        start_time = time.time()
         for update_count in range(total_updates):
+            # Calculate the expected time for this update
+            expected_time = start_time + (update_count * sleep_time)
+            
             if not self.running or self.game_over:
                 break
                 
-            # Increment tick counter
-            self.tick_counter += 1
+            # Synchronize update_count and tick_counter
+            self.tick_counter = update_count + 1
             self.game.current_tick = self.tick_counter
 
             if self.check_end_game():
@@ -240,7 +245,8 @@ class Room:
             
             # Log progress periodically
             if update_count % 600 == 0:
-                elapsed = self.game.start_time + self.tick_counter / self.config.tick_rate
+                current_time = time.time()
+                elapsed = current_time - start_time
                 logger.info(f"Game progress: {update_count}/{total_updates} updates ({update_count/total_updates*100:.1f}%) in {elapsed:.2f} seconds")
                 logger.info(f"Current tick: {self.tick_counter}")
                 # Show current scores
@@ -249,11 +255,17 @@ class Room:
                 # Show train positions
                 for train_name, train in self.game.trains.items():
                     logger.info(f"Train {train_name} position: {train.position}, alive: {train.alive}, score: {train.score}")
+            
+            # Sleep to maintain the correct tick rate
+            current_time = time.time()
+            time_to_sleep = max(0, expected_time + sleep_time - current_time)
+            if time_to_sleep > 0:
+                time.sleep(time_to_sleep)
         
-        end_time = self.game.start_time + self.tick_counter / self.config.tick_rate
-        total_time = end_time - self.game.start_time
-        logger.info(f"Game completed {total_updates} updates in {total_time:.2f} seconds")
-        logger.info(f"Simulation speed: {total_updates/total_time:.1f} updates/second")
+        end_time = time.time()
+        total_time = end_time - start_time
+        logger.info(f"Game completed {self.tick_counter} updates in {total_time:.2f} seconds")
+        logger.info(f"Simulation speed: {self.tick_counter/total_time:.1f} updates/second")
         logger.info(f"Final scores: {self.game.best_scores}")
 
     def end_game(self):
@@ -496,15 +508,20 @@ class Room:
 
     def check_end_game(self):
         if self.game.start_time is not None:
-            current_time =  self.game.start_time + self.tick_counter / self.config.tick_rate
-            # Convert ticks to equivalent seconds
-            elapsed_time = current_time - self.game.start_time
+            # Calculer le temps écoulé basé sur les ticks plutôt que sur le temps absolu
+            elapsed_time = self.tick_counter / self.config.tick_rate
+            
+            # Ajouter un seuil minimum pour éviter que le jeu ne se termine immédiatement
+            if self.tick_counter < 10:  # Attendre au moins 10 ticks avant de vérifier la fin du jeu
+                logger.info(f"Ticks: {self.tick_counter}, elapsed time: {elapsed_time}, game duration: {self.config.game_duration_seconds}")
+                return False
+                
+            logger.info(f"Ticks: {self.tick_counter}, elapsed time: {elapsed_time}, game duration: {self.config.game_duration_seconds}")
 
             if elapsed_time >= self.config.game_duration_seconds:
                 self.end_game()
                 return True
         return False
-        
 
     def is_full(self):
         nb_players = self.get_player_count()
