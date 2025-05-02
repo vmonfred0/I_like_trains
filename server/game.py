@@ -282,13 +282,21 @@ class Game:
         """Remove a train and update game size"""
         if nickname in self.trains:
             # Register the death time
-            # if self.config.grading_mode:
             # In grading mode, use tick-based cooldown
             self.train_death_ticks[nickname] = self.current_tick
+            
+            # Calculate the expected respawn tick based on the standard tickrate
+            standard_tickrate = 60.0  # Reference tickrate
+            tickrate_ratio = standard_tickrate / self.config.tick_rate
+            
+            # For tickrate < standard (e.g. 30), the ratio > 1, making cooldown longer in real time
+            # For tickrate > standard (e.g. 240), the ratio < 1, making cooldown shorter in real time
+            adjusted_cooldown_ticks = int(self.config.respawn_cooldown_seconds * self.config.tick_rate * tickrate_ratio)
+            expected_respawn_tick = self.current_tick + adjusted_cooldown_ticks
+            
+            real_seconds = adjusted_cooldown_ticks / self.config.tick_rate
             logger.debug(f"Train {nickname} died at tick {self.current_tick}, reason: {death_reason}")
-            # else:
-            #     # In normal mode, use time-based cooldown
-            #     self.dead_trains[nickname] = time.time()
+            logger.debug(f"Expected respawn at tick {expected_respawn_tick} (after {adjusted_cooldown_ticks} ticks, {real_seconds:.2f}s real time)")
 
             # Clean up the last delivery time for this train
             if nickname in self.last_delivery_times:
@@ -334,9 +342,13 @@ class Game:
         # In grading mode, use tick-based cooldown
         if nickname in self.train_death_ticks:
             ticks_elapsed = self.current_tick - self.train_death_ticks[nickname]
-            # Convert respawn_cooldown_seconds to ticks
-            cooldown_ticks = int(self.config.respawn_cooldown_seconds * self.config.tick_rate)
-            remaining_ticks = max(0, cooldown_ticks - ticks_elapsed)
+            
+            # Calculate adjusted cooldown ticks
+            standard_tickrate = 60.0  # Reference tickrate
+            tickrate_ratio = standard_tickrate / self.config.tick_rate
+            adjusted_cooldown_ticks = int(self.config.respawn_cooldown_seconds * self.config.tick_rate * tickrate_ratio)
+            
+            remaining_ticks = max(0, adjusted_cooldown_ticks - ticks_elapsed)
             # Return remaining ticks as seconds for consistency
             return remaining_ticks / self.config.tick_rate
         return 0
@@ -400,9 +412,17 @@ class Game:
             # Check for train deaths based on tick counter
             death_ticks_to_check = self.train_death_ticks.copy()
             for nickname, death_tick in death_ticks_to_check.items():
-                cooldown_ticks = int(self.config.respawn_cooldown_seconds * self.config.tick_rate)
-                if self.current_tick >= death_tick + cooldown_ticks:
-                    logger.info(f"Train {nickname} cooldown expired at tick {self.current_tick}")
+                # Calculate the respawn cooldown with adjustment for game speed
+                standard_tickrate = 60.0  # Reference tickrate
+                tickrate_ratio = standard_tickrate / self.config.tick_rate
+                
+                # Calculate cooldown ticks with proper adjustment for game speed
+                adjusted_cooldown_ticks = int(self.config.respawn_cooldown_seconds * self.config.tick_rate * tickrate_ratio)
+                
+                if self.current_tick >= death_tick + adjusted_cooldown_ticks:
+                    real_time_elapsed = (self.current_tick - death_tick) / self.config.tick_rate
+                    logger.info(f"Train {nickname} cooldown expired at tick {self.current_tick} (after {self.current_tick - death_tick} ticks, {real_time_elapsed:.2f}s real time)")
+                    
                     # Remove from death ticks dictionary
                     if nickname in self.train_death_ticks:
                         del self.train_death_ticks[nickname]
