@@ -188,13 +188,12 @@ class Room:
         total_updates = int(self.config.game_duration_seconds * self.config.tick_rate)
         
         # Calculate sleep time between updates based on tick rate
-        sleep_time = 1.0 / self.config.tick_rate
+        start_time = time.time()
         
         # Run the simulation
-        start_time = time.time()
-        for update_count in range(total_updates):
-            # Calculate the expected time for this update
-            expected_time = start_time + (update_count * sleep_time)
+        for update_count in range(total_updates):            
+            # Calculate when this frame should end to maintain the desired tick rate
+            expected_time = start_time + (update_count + 1) * (1.0 / self.config.tick_rate)
             
             if not self.running or self.game_over:
                 break
@@ -243,24 +242,14 @@ class Room:
                     except Exception as e:
                         logger.error(f"Error sending state to client: {e}")
             
-            # Log progress periodically
-            if update_count % 600 == 0:
+            if not self.config.grading_mode:
+                # Sleep to maintain the correct tick rate
                 current_time = time.time()
-                elapsed = current_time - start_time
-                logger.info(f"Game progress: {update_count}/{total_updates} updates ({update_count/total_updates*100:.1f}%) in {elapsed:.2f} seconds")
-                logger.info(f"Current tick: {self.tick_counter}")
-                # Show current scores
-                if self.game.best_scores:
-                    logger.info(f"Current scores: {self.game.best_scores}")
-                # Show train positions
-                for train_name, train in self.game.trains.items():
-                    logger.info(f"Train {train_name} position: {train.position}, alive: {train.alive}, score: {train.score}")
-            
-            # Sleep to maintain the correct tick rate
-            current_time = time.time()
-            time_to_sleep = max(0, expected_time + sleep_time - current_time)
-            if time_to_sleep > 0:
-                time.sleep(time_to_sleep)
+                time_to_sleep = max(0, expected_time - current_time)
+                
+                # Only sleep if needed to maintain the tick rate
+                if time_to_sleep > 0:
+                    time.sleep(time_to_sleep)
         
         end_time = time.time()
         total_time = end_time - start_time
