@@ -211,20 +211,20 @@ class Room:
             
             # Send game state to clients (similar to broadcast_game_state but without time dependency)
             state = self.game.get_state()
-            logger.debug(f"Game state: {state}")
+            # Calculate remaining time correctly based on ticks
+            remaining_seconds = self.config.game_duration_seconds - (self.tick_counter / self.config.tick_rate)
+            # Add remaining time to state data only if it has changed significantly (rounded to nearest second)
+            current_remaining_time_rounded = round(remaining_seconds)
+            
+            if self.game.last_remaining_time is None or current_remaining_time_rounded != round(self.game.last_remaining_time):
+                logger.debug(f"Adding remaining time to state: {remaining_seconds}")
+                state["remaining_time"] = remaining_seconds
+                self.game.last_remaining_time = remaining_seconds
+
+            # Create the data packet
+            state_data = {"type": "state", "data": state}
+
             if state:  # If data has been modified
-                # Calculate remaining time correctly based on ticks
-                remaining_seconds = self.config.game_duration_seconds - (self.tick_counter / self.config.tick_rate)
-                # Add remaining time to state data only if it has changed significantly (rounded to nearest second)
-                current_remaining_time_rounded = round(remaining_seconds)
-                
-                if self.game.last_remaining_time is None or current_remaining_time_rounded != round(self.game.last_remaining_time):
-                    state["remaining_time"] = remaining_seconds
-                    self.game.last_remaining_time = remaining_seconds
-
-                # Create the data packet
-                state_data = {"type": "state", "data": state}
-
                 # Send the state to all clients
                 state_json = json.dumps(state_data) + "\n"
                 for client_addr in list(self.clients.keys()):
@@ -510,13 +510,6 @@ class Room:
         if self.game.start_time is not None:
             # Calculer le temps écoulé basé sur les ticks plutôt que sur le temps absolu
             elapsed_time = self.tick_counter / self.config.tick_rate
-            
-            # Ajouter un seuil minimum pour éviter que le jeu ne se termine immédiatement
-            if self.tick_counter < 10:  # Attendre au moins 10 ticks avant de vérifier la fin du jeu
-                logger.info(f"Ticks: {self.tick_counter}, elapsed time: {elapsed_time}, game duration: {self.config.game_duration_seconds}")
-                return False
-                
-            logger.info(f"Ticks: {self.tick_counter}, elapsed time: {elapsed_time}, game duration: {self.config.game_duration_seconds}")
 
             if elapsed_time >= self.config.game_duration_seconds:
                 self.end_game()
@@ -621,8 +614,6 @@ class Room:
 
     def broadcast_game_state(self):
         """Thread that periodically sends the game state to clients"""
-        self.running = True
-
         # Send initial state to all clients
         initial_state = {
             "type": "initial_state",
