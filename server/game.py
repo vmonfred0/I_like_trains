@@ -84,7 +84,7 @@ class Game:
         self.last_update = time.time()
 
         self.game_started = False  # Track if game has started
-        self.last_delivery_times = {}  # {nickname: last_delivery_time}
+        self.last_delivery_ticks = {}  # {nickname: last_delivery_tick}
         self.running = True
 
         # self.high_score_all_time = HighScore()
@@ -292,8 +292,8 @@ class Game:
             logger.debug(f"Expected respawn at tick {expected_respawn_tick} (after {adjusted_cooldown_ticks} ticks, {real_seconds:.2f}s real time)")
 
             # Clean up the last delivery time for this train
-            if nickname in self.last_delivery_times:
-                del self.last_delivery_times[nickname]
+            if nickname in self.last_delivery_ticks:
+                del self.last_delivery_ticks[nickname]
 
             # Notify the client of the cooldown
             self.send_cooldown_notification(
@@ -371,12 +371,11 @@ class Game:
 
             # Check for delivery zone collisions
             if self.delivery_zone.contains(train.position):
-                current_time = time.time()
-                # Check if enough time has passed since the last delivery for this train
+                # Check if enough ticks have passed since the last delivery for this train
                 if (
-                    train.nickname not in self.last_delivery_times
-                    or current_time - self.last_delivery_times.get(train.nickname, 0)
-                    >= self.config.delivery_cooldown_seconds
+                    train.nickname not in self.last_delivery_ticks
+                    or self.current_tick - self.last_delivery_ticks.get(train.nickname, 0)
+                    >= self.get_delivery_cooldown_ticks()
                 ):
                     # Slowly popping wagons and increasing score
                     wagon = train.pop_wagon()
@@ -386,8 +385,14 @@ class Game:
                         if train.score > self.best_scores.get(train.nickname, 0):
                             self.best_scores[train.nickname] = train.score
                             self._dirty["best_scores"] = True
-                        # Update the last delivery time for this train
-                        self.last_delivery_times[train.nickname] = current_time
+                        # Update the last delivery tick for this train
+                        self.last_delivery_ticks[train.nickname] = self.current_tick
+
+    def get_delivery_cooldown_ticks(self):
+        standard_tickrate = 60.0  # Reference tickrate
+        tickrate_ratio = standard_tickrate / self.config.tick_rate
+        adjusted_cooldown_ticks = int(self.config.delivery_cooldown_seconds * self.config.tick_rate * tickrate_ratio)
+        return adjusted_cooldown_ticks
 
     def update(self):
         """Update game state"""
