@@ -59,7 +59,7 @@ logger = setup_server_logger()
 class Server:
     def __init__(self, config: Config):
         self.config = config.server
-
+        
         # Set extremely high tick_rate if grading_mode is enabled
         if self.config.grading_mode:
             logger.info("Grading mode detected. Setting tick_rate to 10000")
