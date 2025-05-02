@@ -147,6 +147,7 @@ class AIClient:
         self.game_width = self.game.game_width
         self.game_height = self.game.game_height
         self.in_waiting_room = not self.game.game_started
+        self.remaining_game_time = self.game.last_remaining_time
 
     def update_cycle(self):
         """Execute a single update cycle without the loop - used in grading mode"""
