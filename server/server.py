@@ -122,10 +122,10 @@ class Server:
             if not os.path.exists(agent_file_path):
                 error_msg = f"Agent file not found: {agent.agent_file_name} for agent {agent.nickname}"
                 logger.error(error_msg)
-                print(f"\nERROR: {error_msg}")
+                print(f"ERROR: {error_msg}")
                 print(f"The file should be located at: {agent_file_path}")
                 print("Server is shutting down.")
-                sys.exit(1)
+                raise FileNotFoundError(f"Missing agent file: {agent_file_path}")
 
         logger.info("All agent files verified successfully")
 
