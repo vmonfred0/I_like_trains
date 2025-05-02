@@ -273,7 +273,7 @@ class Room:
             
             # Sleep if necessary to maintain the desired tick rate in real time
             # Skip sleep in grading mode to run as fast as possible
-            if not self.config.grading_mode and real_seconds_per_tick > 0:
+            if real_seconds_per_tick > 0:
                 time_to_sleep = max(0, real_seconds_per_tick - tick_processing_time)
                 if time_to_sleep > 0:
                     time.sleep(time_to_sleep)
