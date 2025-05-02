@@ -187,13 +187,27 @@ class Room:
         # Calculate total number of updates for the game duration
         total_updates = int(self.config.game_duration_seconds * self.config.tick_rate)
         
-        # Calculate sleep time between updates based on tick rate
-        start_time = time.time()
+        # Store the actual game start time for real-time tracking
+        game_start_time = time.time()
+        
+        # Initialize game time variables - completely separate from real time
+        game_time_seconds = 0.0
+        time_per_tick = 1.0 / self.config.tick_rate
+        
+        # Calculate the speed multiplier based on tickrate
+        # For normal gameplay (60 ticks), multiplier is 1.0
+        # For accelerated gameplay (240 ticks), multiplier is 4.0
+        speed_multiplier = self.config.tick_rate / 60.0
+        
+        # Adjust time_per_tick to be in real time, not game time
+        real_time_per_tick = time_per_tick / speed_multiplier if not self.config.grading_mode else 0
+        
+        logger.debug(f"Game running with speed multiplier: {speed_multiplier:.1f}x")
+        logger.debug(f"Real time per tick: {real_time_per_tick*1000:.2f} ms")
         
         # Run the simulation
-        for update_count in range(total_updates):            
-            # Calculate when this frame should end to maintain the desired tick rate
-            expected_time = start_time + (update_count + 1) * (1.0 / self.config.tick_rate)
+        for update_count in range(total_updates):
+            tick_start_time = time.time()
             
             if not self.running or self.game_over:
                 break
@@ -208,17 +222,26 @@ class Room:
             # Update game state
             self.game.update()
             
+            # Update game time - this advances at the rate defined by tick_rate
+            # This is accelerated by the speed multiplier
+            game_time_seconds += time_per_tick * speed_multiplier
+            
             # Send game state to clients (similar to broadcast_game_state but without time dependency)
             state = self.game.get_state()
-            # Calculate remaining time correctly based on ticks
-            remaining_seconds = self.config.game_duration_seconds - (self.tick_counter / self.config.tick_rate)
-            # Add remaining time to state data only if it has changed significantly (rounded to nearest second)
-            current_remaining_time_rounded = round(remaining_seconds)
             
-            if self.game.last_remaining_time is None or current_remaining_time_rounded != round(self.game.last_remaining_time):
-                logger.debug(f"Adding remaining time to state: {remaining_seconds}")
-                state["remaining_time"] = remaining_seconds
-                self.game.last_remaining_time = remaining_seconds
+            # Calculate remaining time based on in-game ticks, not real time
+            # This is the key change - remaining time is based on game time, not real time
+            remaining_game_time = self.config.game_duration_seconds - game_time_seconds
+            
+            # Calculate elapsed real time for logging comparison
+            # real_elapsed_time = time.time() - game_start_time
+            # real_remaining_time = self.config.game_duration_seconds - real_elapsed_time
+            
+            # Add remaining time to state data only if it has changed significantly (rounded to nearest second)
+            if self.game.last_remaining_time is None or round(remaining_game_time) != round(self.game.last_remaining_time):
+                # logger.debug(f"Adding remaining time to state: {remaining_game_time:.2f} (game time) vs {real_remaining_time:.2f} (real time)")
+                state["remaining_time"] = round(remaining_game_time)
+                self.game.last_remaining_time = remaining_game_time
 
             # Create the data packet
             state_data = {"type": "state", "data": state}
@@ -241,20 +264,22 @@ class Room:
                         )
                     except Exception as e:
                         logger.error(f"Error sending state to client: {e}")
+
+            # Calculate how long this tick took to process
+            tick_processing_time = time.time() - tick_start_time
             
+            # Sleep just enough to maintain the desired real-time tick rate
+            # In grading mode, we don't sleep at all to run as fast as possible
             if not self.config.grading_mode:
-                # Sleep to maintain the correct tick rate
-                current_time = time.time()
-                time_to_sleep = max(0, expected_time - current_time)
-                
-                # Only sleep if needed to maintain the tick rate
+                time_to_sleep = max(0, real_time_per_tick - tick_processing_time)
                 if time_to_sleep > 0:
                     time.sleep(time_to_sleep)
-        
+            
         end_time = time.time()
-        total_time = end_time - start_time
+        total_time = end_time - game_start_time
         logger.info(f"Game completed {self.tick_counter} updates in {total_time:.2f} seconds")
         logger.info(f"Simulation speed: {self.tick_counter/total_time:.1f} updates/second")
+        logger.info(f"Game time ratio: {game_time_seconds/total_time:.1f}x real time")
         logger.info(f"Final scores: {self.game.best_scores}")
 
     def end_game(self):

@@ -114,7 +114,7 @@ class Train:
 
         # Check if it's time to move
         if (
-            self.move_timer >= self.tick_rate / self.speed
+            self.move_timer >= 60 / self.speed
         ):  # self.tick_rate ticks per second
             self.move_timer = 0
             self.set_direction(self.new_direction)
@@ -182,6 +182,7 @@ class Train:
 
     def move(self, trains, screen_width, screen_height, cell_size):
         """Regular interval movement"""
+        # logger.debug(f"Moving train {self.nickname} with speed {self.speed}")
         if not self.alive:
             return
 
