@@ -114,6 +114,27 @@ class Room:
             self.fill_with_bots()
             self.add_all_trains()
 
+            # Record the game start time
+            self.game_start_time = time.time()
+
+            # Send game_started_success message - Moved before the grading mode check
+            response = {"type": "game_started_success"}
+            # Send response to all clients
+            for client_addr in list(self.clients.keys()):
+                try:
+                    # Skip AI clients - they don't need network messages
+                    if (
+                        isinstance(client_addr, tuple)
+                        and len(client_addr) == 2
+                        and client_addr[0] == "AI"
+                    ):
+                        continue
+                    self.server_socket.sendto(
+                        (json.dumps(response) + "\n").encode(), client_addr
+                    )
+                except Exception as e:
+                    logger.error(f"Error sending start success to client: {e}")
+            
             # Check if we're in grading mode
             if self.config.grading_mode:
                 logger.info(f"Starting game in grading mode for room {self.id}")
@@ -148,26 +169,6 @@ class Room:
                 self.game_thread = threading.Thread(target=self.game.run)
                 self.game_thread.daemon = True
                 self.game_thread.start()
-
-            # Record the game start time
-            self.game_start_time = time.time()
-
-            response = {"type": "game_started_success"}
-            # Send response to all clients
-            for client_addr in list(self.clients.keys()):
-                try:
-                    # Skip AI clients - they don't need network messages
-                    if (
-                        isinstance(client_addr, tuple)
-                        and len(client_addr) == 2
-                        and client_addr[0] == "AI"
-                    ):
-                        continue
-                    self.server_socket.sendto(
-                        (json.dumps(response) + "\n").encode(), client_addr
-                    )
-                except Exception as e:
-                    logger.error(f"Error sending start success to client: {e}")
 
             logger.info(
                 f"Game started in room {self.id} with {len(self.clients)} clients"
