@@ -66,13 +66,14 @@ class Room:
         self.client_game_modes = {}  # {addr: game_mode}
         self.game_thread = None
 
-        self.waiting_room_thread = None
         self.game_over = False  # Track if the game is over
         self.room_creation_time = time.time()  # Track when the room was created
         self.first_client_join_time = None  # Track when the first client joins
         self.stop_waiting_room = False  # Flag to stop the waiting room thread - Initialized BEFORE thread start
 
-        self.broadcast_waiting_room()
+        self.waiting_room_thread = threading.Thread(target=self.broadcast_waiting_room)
+        self.waiting_room_thread.daemon = True
+        self.waiting_room_thread.start()
 
         self.tick_counter = 0  # Track the number of ticks since game start
 
