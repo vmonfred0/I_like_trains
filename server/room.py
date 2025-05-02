@@ -118,13 +118,22 @@ class Room:
             if self.config.grading_mode:
                 logger.info(f"Starting game in grading mode for room {self.id}")
                 
-                # In grading mode, make sure we have at least one bot
-                if len(self.ai_clients) == 0 and len(self.config.agents) > 0:
-                    logger.info("No AI clients found, adding one for grading mode")
-                    agent = self.config.agents[0]
-                    ai_nickname = self.get_available_ai_name(agent)
-                    ai_agent_file_name = agent.agent_file_name
-                    self.add_ai(ai_nickname=ai_nickname, ai_agent_file_name=ai_agent_file_name)
+                # In grading mode, make sure we add all configured bots
+                if len(self.config.agents) > 0:
+                    logger.info(f"Adding {len(self.config.agents)} AI clients for grading mode")
+                    
+                    # Clear any existing AI clients first to avoid duplicates
+                    self.ai_clients = {}
+                    self.game.ai_clients = {}
+                    
+                    # Add all configured agents
+                    for agent in self.config.agents:
+                        ai_nickname = self.get_available_ai_name(agent)
+                        ai_agent_file_name = agent.agent_file_name
+                        logger.info(f"Adding AI client {ai_nickname} with agent {ai_agent_file_name}")
+                        self.add_ai(ai_nickname=ai_nickname, ai_agent_file_name=ai_agent_file_name)
+                else:
+                    logger.warning("No agents configured in config.json for grading mode")
                 
                 # Log AI clients before running
                 logger.info(f"AI clients before running grading mode: {self.ai_clients.keys()}")
