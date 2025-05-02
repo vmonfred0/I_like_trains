@@ -200,12 +200,7 @@ class Room:
         # Calculate how much real time should pass per tick (in seconds)
         # For higher tickrates, we want to process ticks faster (less real time per tick)
         # For lower tickrates, we want to process ticks slower (more real time per tick)
-        if self.config.grading_mode:
-            # In grading mode, run as fast as possible
-            real_seconds_per_tick = 0
-        else:
-            # In normal mode, scale the real time per tick based on the tickrate
-            real_seconds_per_tick = 1.0 / self.config.tick_rate
+        real_seconds_per_tick = 1.0 / self.config.tick_rate
         
         # Log the timing information
         if self.config.tick_rate == standard_tickrate:
@@ -242,7 +237,6 @@ class Room:
             
             # Calculate remaining game time
             remaining_game_time = self.config.game_duration_seconds - game_time_elapsed
-            
             
             # Prepare the game state to send to clients
             state = self.game.get_state()
@@ -284,9 +278,6 @@ class Room:
                 if time_to_sleep > 0:
                     time.sleep(time_to_sleep)
 
-            # log remaining time
-            logger.info(f"Remaining time: {remaining_game_time:.2f} seconds")
-        
         # Game has finished
         end_time = time.time()
         total_real_time = end_time - game_start_time
@@ -675,7 +666,6 @@ class Room:
                         # Add remaining time to state data only if it has changed significantly (rounded to nearest second)
                         remaining_seconds = self.config.game_duration_seconds - (self.tick_counter / self.config.tick_rate)
                         current_remaining_time_rounded = round(remaining_seconds)
-                        logger.debug(f"Remaining time: {remaining_seconds}, Last remaining time: {self.game.last_remaining_time}")
                         if self.game.last_remaining_time is None or current_remaining_time_rounded != round(self.game.last_remaining_time):
                             logger.debug(f"Remaining time changed: {remaining_seconds}")
                             state["remaining_time"] = remaining_seconds

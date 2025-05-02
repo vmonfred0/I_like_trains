@@ -109,13 +109,14 @@ class Train:
                 self.boost_cooldown_active = False
                 self._dirty["boost_cooldown_active"] = True
                 
-        # Increment movement timer
+        # Increment movement timer - with fixed increment to ensure consistent speed across tickrates
         self.move_timer += 1
 
+        # Simple threshold based on speed only - independent of tickrate
+        move_threshold = 60 / self.speed
+        
         # Check if it's time to move
-        if (
-            self.move_timer >= 60/ self.speed
-        ):  # self.tick_rate ticks per second
+        if self.move_timer >= move_threshold:
             self.move_timer = 0
             self.set_direction(self.new_direction)
             self.move(trains, screen_width, screen_height, cell_size)
@@ -182,7 +183,6 @@ class Train:
 
     def move(self, trains, screen_width, screen_height, cell_size):
         """Regular interval movement"""
-        # logger.debug(f"Moving train {self.nickname} with speed {self.speed}")
         if not self.alive:
             return
 

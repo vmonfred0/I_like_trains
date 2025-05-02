@@ -111,7 +111,6 @@ class AIClient:
 
         # Start the AI thread only if not in grading mode
         self.running = True
-        # if not room.config.grading_mode:
         self.thread = threading.Thread(target=self.run)
         self.thread.daemon = True
         self.thread.start()

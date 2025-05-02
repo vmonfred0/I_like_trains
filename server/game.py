@@ -312,12 +312,7 @@ class Game:
                 client = self.ai_clients[nickname]
                 # Change the train's state
                 client.is_dead = True
-                # if self.config.grading_mode:
-                #     # In grading mode, track death by tick
                 client.death_tick = self.current_tick
-                # else:
-                #     # In normal mode, track death by time
-                #     client.death_time = time.time()
                 client.waiting_for_respawn = True
                 client.respawn_cooldown = self.config.respawn_cooldown_seconds
             return True
@@ -358,7 +353,9 @@ class Game:
         return nickname in self.trains
 
     def check_collisions(self):
-        for _, train in self.trains.items():
+        # Créer une copie du dictionnaire pour éviter de le modifier pendant l'itération
+        trains_copy = list(self.trains.items())
+        for _, train in trains_copy:
             train.update(
                 self.trains,
                 self.game_width,
