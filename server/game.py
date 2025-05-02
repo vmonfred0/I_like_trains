@@ -417,25 +417,30 @@ class Game:
                                 ai_client.is_dead = False
                                 logger.debug(f"AI client {nickname} respawned after cooldown")
 
-            # If in grading mode, directly update all AI agents
-            if self.config.grading_mode:
-                if not self.ai_clients:
-                    logger.debug("No AI clients to update in grading mode")
-                    return
-                    
-                for ai_name, ai_client in self.ai_clients.items():
-                    # Update agent state only if train is alive and game contains train
-                    if not ai_client.is_dead and self.contains_train(ai_name):
-                        # Call the update_cycle method directly instead of updating manually
-                        ai_client.update_cycle()
-                    
-                    # Handle respawn in grading mode
-                    elif ai_client.is_dead and ai_client.waiting_for_respawn:
-                        # In grading mode, respawn immediately after death
-                        cooldown = self.get_train_cooldown(ai_name)
-                        if cooldown <= 0:
-                            logger.info(f"Respawning AI client {ai_name} in grading mode")
-                            if self.add_train(ai_name):
-                                ai_client.waiting_for_respawn = False
-                                ai_client.is_dead = False
-                                logger.debug(f"AI client {ai_name} respawned in grading mode")
+            # Handle automatic respawn for AI clients
+            for ai_name, ai_client in self.ai_clients.items():
+                # Add automatic respawn logic
+                if ai_client.is_dead and ai_client.waiting_for_respawn:
+                    if ai_client.in_waiting_room:
+                        logger.debug(
+                            f"AI client {ai_name} in waiting room, trying to start game"
+                        )
+                        # Start game if in waiting room
+                        if (
+                            not ai_client.room.game_thread
+                            or not ai_client.room.game_thread.is_alive()
+                        ):
+                            if ai_client.room.get_player_count() >= ai_client.room.nb_players_max:
+                                ai_client.room.start_game()
+
+                    cooldown = self.get_train_cooldown(ai_name)
+                    if cooldown <= 0:
+                        if self.add_train(ai_name):
+                            ai_client.waiting_for_respawn = False
+                            ai_client.is_dead = False
+                            logger.info(f"AI client {ai_name} respawned")
+
+                # Update agent state only if train is alive and game contains train
+                else:
+                    # Call the update_cycle method directly instead of updating manually
+                    ai_client.update_state()
