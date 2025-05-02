@@ -248,14 +248,7 @@ class Game:
         logger.debug(f"Adding train {nickname}")
         # Check the cooldown
         if nickname in self.dead_trains:
-            elapsed = time.time() - self.dead_trains[nickname]
-            if elapsed < self.config.respawn_cooldown_seconds:
-                logger.debug(
-                    f"Train {nickname} still in cooldown for {self.config.respawn_cooldown_seconds - elapsed:.1f}s"
-                )
-                return False
-            else:
-                del self.dead_trains[nickname]
+            del self.dead_trains[nickname]
 
         # Create the new train
         spawn_pos = self.get_safe_spawn_position()
