@@ -76,6 +76,7 @@ class Game:
         self.current_tick = 0  # Current tick counter
         self.start_time_ticks = 0  # Start time in ticks
         self.start_time = None  # Track when the game starts
+        self.last_remaining_time = None  # Track the last remaining time sent to clients
 
         self.desired_passengers = 0
 
@@ -145,11 +146,6 @@ class Game:
             self._dirty["best_scores"] = False
 
         return state
-
-    def run(self):
-        while self.running:
-            self.update()
-            time.sleep(1 / self.config.tick_rate)
 
     def is_position_safe(self, x, y):
         """Check if a position is safe for spawning"""
@@ -286,13 +282,13 @@ class Game:
         """Remove a train and update game size"""
         if nickname in self.trains:
             # Register the death time
-            if self.config.grading_mode:
-                # In grading mode, use tick-based cooldown
-                self.train_death_ticks[nickname] = self.current_tick
-                logger.debug(f"Train {nickname} died at tick {self.current_tick}, reason: {death_reason}")
-            else:
-                # In normal mode, use time-based cooldown
-                self.dead_trains[nickname] = time.time()
+            # if self.config.grading_mode:
+            # In grading mode, use tick-based cooldown
+            self.train_death_ticks[nickname] = self.current_tick
+            logger.debug(f"Train {nickname} died at tick {self.current_tick}, reason: {death_reason}")
+            # else:
+            #     # In normal mode, use time-based cooldown
+            #     self.dead_trains[nickname] = time.time()
 
             # Clean up the last delivery time for this train
             if nickname in self.last_delivery_times:
@@ -308,12 +304,12 @@ class Game:
                 client = self.ai_clients[nickname]
                 # Change the train's state
                 client.is_dead = True
-                if self.config.grading_mode:
-                    # In grading mode, track death by tick
-                    client.death_tick = self.current_tick
-                else:
-                    # In normal mode, track death by time
-                    client.death_time = time.time()
+                # if self.config.grading_mode:
+                #     # In grading mode, track death by tick
+                client.death_tick = self.current_tick
+                # else:
+                #     # In normal mode, track death by time
+                #     client.death_time = time.time()
                 client.waiting_for_respawn = True
                 client.respawn_cooldown = self.config.respawn_cooldown_seconds
             return True

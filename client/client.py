@@ -296,16 +296,6 @@ class Client:
 
         logger.info(f"Game lifetime set to {self.game_life_time} seconds")
 
-    def get_remaining_time(self):
-        """Calculate remaining game time in seconds"""
-        if not hasattr(self, "game_life_time") or not hasattr(self, "game_start_time"):
-            return None
-
-        elapsed = time.time() - self.game_start_time
-        remaining = max(0, self.game_life_time - elapsed)
-
-        return remaining
-
     def handle_server_disconnection(self):
         """Handle server disconnection gracefully"""
         logger.warning("Server disconnected, shutting down client...")
