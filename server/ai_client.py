@@ -150,7 +150,6 @@ class AIClient:
 
     def update_cycle(self):
         """Execute a single update cycle without the loop - used in grading mode"""
-        logger.debug(f"Updating AI client {self.nickname}")
         # Update the client state from the game
         self.update_state()
 
