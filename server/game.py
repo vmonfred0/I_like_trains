@@ -81,7 +81,6 @@ class Game:
         self.desired_passengers = 0
 
         self.lock = threading.Lock()
-        self.last_update = time.time()
 
         self.game_started = False  # Track if game has started
         self.last_delivery_ticks = {}  # {nickname: last_delivery_tick}
