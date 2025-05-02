@@ -28,6 +28,9 @@ class ServerConfig(BaseModel):
     # useful for debugging purpose.
     tick_rate: int = 60
 
+    # Flag to enable the fast simulation mode for grading.
+    grading_mode: bool = False
+
     # Duration of each game.
     game_duration_seconds: int = 300  # 300 seconds == 5 minutes
 
@@ -50,4 +53,3 @@ class ServerConfig(BaseModel):
 
     # Local agents configuration, add or remove agents you want to evaluate as needed
     agents: list[AgentConfig] = []
-

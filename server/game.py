@@ -147,6 +147,61 @@ class Game:
             self.update()
             time.sleep(1 / self.config.tick_rate)
 
+    def run_grading_mode(self):
+        """Run the game in grading mode - as fast as possible without threads or sleep"""
+        logger.info("Running game in grading mode")
+        start_time = time.time()
+        
+        # Initialize game state
+        self.game_started = True
+        
+        # Make sure trains are added and initialized correctly
+        if not self.ai_clients:
+            logger.warning("No AI clients found in game for grading mode")
+        else:
+            logger.info(f"Found {len(self.ai_clients)} AI clients for grading mode: {list(self.ai_clients.keys())}")
+            
+        for ai_name, ai_client in self.ai_clients.items():
+            if ai_name not in self.trains:
+                logger.info(f"Adding train for AI client {ai_name}")
+                self.add_train(ai_name)
+            # Update agent state
+            ai_client.update_state()
+            
+            # Log train status
+            if ai_name in self.trains:
+                logger.info(f"Train {ai_name} initialized at position {self.trains[ai_name].position}")
+            else:
+                logger.warning(f"Failed to add train for AI client {ai_name}")
+        
+        # Calculate total number of updates for the game duration
+        total_updates = int(self.config.game_duration_seconds * self.config.tick_rate)
+        
+        # Run the simulation
+        for update_count in range(total_updates):
+            if not self.running:
+                break
+                
+            # Update game state
+            self.update()
+            
+            # Log progress periodically
+            if update_count % 600 == 0:
+                elapsed = time.time() - start_time
+                logger.info(f"Grading mode progress: {update_count}/{total_updates} updates ({update_count/total_updates*100:.1f}%) in {elapsed:.2f} seconds")
+                # Show current scores
+                if self.best_scores:
+                    logger.info(f"Current scores: {self.best_scores}")
+                # Show train positions
+                for train_name, train in self.trains.items():
+                    logger.info(f"Train {train_name} position: {train.position}, alive: {train.alive}, score: {train.score}")
+            
+        end_time = time.time()
+        total_time = end_time - start_time
+        logger.info(f"Grading mode completed {total_updates} updates in {total_time:.2f} seconds")
+        logger.info(f"Simulation speed: {total_updates/total_time:.1f} updates/second")
+        logger.info(f"Final scores: {self.best_scores}")
+
     def is_position_safe(self, x, y):
         """Check if a position is safe for spawning"""
         # Check the borders
@@ -379,3 +434,28 @@ class Game:
             # Update all trains and check for death conditions
             # trains_to_remove = []
             self.check_collisions()
+
+            # If in grading mode, directly update all AI agents
+            if self.config.grading_mode:
+                if not self.ai_clients:
+                    logger.debug("No AI clients to update in grading mode")
+                    return
+                    
+                logger.debug(f"Updating {len(self.ai_clients)} AI clients in grading mode")
+                for ai_name, ai_client in self.ai_clients.items():
+                    # Update agent state only if train is alive and game contains train
+                    if not ai_client.is_dead and self.contains_train(ai_name):
+                        logger.debug(f"Updating AI client {ai_name}")
+                        # Call the update_cycle method directly instead of updating manually
+                        ai_client.update_cycle()
+                    
+                    # Handle respawn in grading mode
+                    elif ai_client.is_dead and ai_client.waiting_for_respawn:
+                        # In grading mode, respawn immediately after death
+                        cooldown = self.get_train_cooldown(ai_name)
+                        if cooldown <= 0:
+                            logger.info(f"Respawning AI client {ai_name} in grading mode")
+                            if self.add_train(ai_name):
+                                ai_client.waiting_for_respawn = False
+                                ai_client.is_dead = False
+                                logger.debug(f"AI client {ai_name} respawned in grading mode")
