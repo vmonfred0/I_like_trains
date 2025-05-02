@@ -28,7 +28,9 @@ class ServerConfig(BaseModel):
     # useful for debugging purpose.
     tick_rate: int = 60
 
-    # Flag to enable the fast simulation mode for grading.
+    # Flag to enable the simulation mode for grading. 
+    # In normal mode, we add all human players to the game first and then add bots if needed. 
+    # In grading mode, we add all configured agents to the game.
     grading_mode: bool = False
 
     # Duration of each game.

@@ -111,13 +111,13 @@ class AIClient:
 
         # Start the AI thread only if not in grading mode
         self.running = True
-        if not room.config.grading_mode:
-            self.thread = threading.Thread(target=self.run)
-            self.thread.daemon = True
-            self.thread.start()
-            logger.info(f"AI client {nickname} started")
-        else:
-            logger.info(f"AI client {nickname} initialized in grading mode (no thread)")
+        # if not room.config.grading_mode:
+        self.thread = threading.Thread(target=self.run)
+        self.thread.daemon = True
+        self.thread.start()
+        logger.info(f"AI client {nickname} started")
+        # else:
+        #     logger.info(f"AI client {nickname} initialized in grading mode (no thread)")
 
         self.update_state()
 
@@ -147,12 +147,6 @@ class AIClient:
         self.game_width = self.game.game_width
         self.game_height = self.game.game_height
         self.in_waiting_room = not self.game.game_started
-        self.remaining_game_time = self.game.last_remaining_time
-
-    def update_cycle(self):
-        """Execute a single update cycle without the loop - used in grading mode"""
-        # Update the client state from the game
-        self.update_state()
 
         # Make sure the agent has access to the correct properties
         self.agent.all_trains = self.all_trains
@@ -166,35 +160,11 @@ class AIClient:
         if not self.is_dead and self.game.contains_train(self.nickname):
             self.agent.update_agent()
 
-        # Add automatic respawn logic
-        if self.is_dead and self.waiting_for_respawn:
-            elapsed = time.time() - self.death_time
-            if elapsed >= self.respawn_cooldown:
-                if self.in_waiting_room:
-                    logger.debug(
-                        f"AI client {self.nickname} in waiting room, trying to start game"
-                    )
-                    # Start game if in waiting room
-                    if (
-                        not self.room.game_thread
-                        or not self.room.game_thread.is_alive()
-                    ):
-                        if self.room.get_player_count() >= self.room.nb_players_max:
-                            self.room.start_game()
-
-                logger.debug(f"AI client {self.nickname} trying to spawn")
-                cooldown = self.room.game.get_train_cooldown(self.nickname)
-                if cooldown <= 0:
-                    self.room.game.add_train(self.nickname)
-                    self.waiting_for_respawn = False
-                    self.is_dead = False
-                    logger.info(f"AI client {self.nickname} respawned")
-
     def run(self):
         """Main AI client loop"""
         while self.running and self.room.running:
             # Execute a single update cycle
-            self.update_cycle()
+            self.update_state()
             
             # Sleep to avoid high CPU usage
             time.sleep(0.1)

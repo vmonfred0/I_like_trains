@@ -133,7 +133,7 @@ class Room:
             except Exception as e:
                 logger.error(f"Error sending start success to client: {e}")
         
-        # In grading mode, we run the simulation directly in this thread
+        # In grading mode, we add all configured agents to the game
         if self.config.grading_mode:
             logger.info("Starting game in grading mode")
             if len(self.config.agents) > 0:
@@ -150,7 +150,7 @@ class Room:
             else:
                 logger.warning("No agents configured in config.json for grading mode")
         else:
-            # In normal mode, we start the game thread
+            # In normal mode, we add all human players to the game first and then add bots if needed
             logger.info("Starting game in normal mode")
             
             self.add_all_trains()
