@@ -31,6 +31,7 @@ class ServerConfig(BaseModel):
     # Flag to enable the simulation mode for grading. 
     # In normal mode, we add all human players to the game first and then add bots if needed. 
     # In grading mode, we add all configured agents to the game.
+    # If grading_mode is enabled, tick_rate is set to 10000 to run as fast as possible.
     grading_mode: bool = False
 
     # Duration of each game.
