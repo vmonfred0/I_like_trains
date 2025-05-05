@@ -6,6 +6,7 @@ This module provides an AI client that can control trains on the server side
 import threading
 import time
 import logging
+import json
 from server.passenger import Passenger
 import importlib
 
@@ -109,7 +110,6 @@ class AIClient:
 
         self.agent.delivery_zone = self.game.delivery_zone.to_dict()
 
-        # Start the AI thread
         self.running = True
         self.thread = threading.Thread(target=self.run)
         self.thread.daemon = True
@@ -120,89 +120,85 @@ class AIClient:
 
     def update_state(self):
         """Update the state from the game"""
-        # Format trains in the expected format for the agent
-        self.all_trains = {}
-        for name, train in self.game.trains.items():
-            self.all_trains[name] = {
-                "name": name,
-                "position": train.position,
-                "direction": train.direction,
-                "wagons": train.wagons,
-                "score": train.score,
-                "alive": train.alive,
-            }
+        # Get the serialized state data from the game
+        state_data = self.game.get_state()
+        
+        # Simuler la sérialisation/désérialisation JSON pour garantir le même format de données
+        # que les clients normaux (conversion des tuples en listes, etc.)
+        state_data_json = json.dumps(state_data)
+        state_data = json.loads(state_data_json)
+        
+        # Initialize collections if they don't exist yet
+        if not hasattr(self, "all_trains") or self.all_trains is None:
+            self.all_trains = {}
+        if not hasattr(self, "passengers") or self.passengers is None:
+            self.passengers = []
+        if not hasattr(self, "delivery_zone") or self.delivery_zone is None:
+            self.delivery_zone = []
+        if not hasattr(self, "cell_size") or self.cell_size is None:
+            self.cell_size = None
+        if not hasattr(self, "game_width") or self.game_width is None:
+            self.game_width = None
+        if not hasattr(self, "game_height") or self.game_height is None:
+            self.game_height = None
+        if not hasattr(self, "best_scores") or self.best_scores is None:
+            self.best_scores = []
 
-        # Format passengers in the expected format for the agent
-        self.passengers = []
-        for passenger in self.game.passengers:
-            self.passengers.append(
-                {"position": passenger.position, "value": passenger.value}
-            )
-
-        # Copy other game state properties
-        self.cell_size = self.game.cell_size
-        self.game_width = self.game.game_width
-        self.game_height = self.game.game_height
+        # Process the state data similar to GameState.handle_state_data
+        
+        # Update trains if present in the state data
+        if "trains" in state_data:
+            for nickname, train_data in state_data["trains"].items():
+                if nickname not in self.all_trains:
+                    self.all_trains[nickname] = {}
+                # Update the modified attributes
+                self.all_trains[nickname].update(train_data)
+        
+        # Update passengers if present
+        if "passengers" in state_data:
+            self.passengers = state_data["passengers"]
+        
+        # Update delivery zone if present
+        if "delivery_zone" in state_data:
+            self.delivery_zone = state_data["delivery_zone"]
+        
+        # Update size if present
+        if "size" in state_data:
+            self.game_width = state_data["size"]["game_width"]
+            self.game_height = state_data["size"]["game_height"]
+        
+        # Update cell size if present
+        if "cell_size" in state_data:
+            self.cell_size = state_data["cell_size"]
+        
+        # Update best scores if present
+        if "best_scores" in state_data:
+            self.best_scores = state_data["best_scores"]
+            
+        # Update other properties
         self.in_waiting_room = not self.game.game_started
+        
+        # Make sure the agent has access to the correct properties
+        self.agent.all_trains = self.all_trains
+        self.agent.passengers = self.passengers
+        self.agent.cell_size = self.cell_size
+        self.agent.best_scores = self.best_scores
+        self.agent.game_width = self.game_width
+        self.agent.game_height = self.game_height
+        self.agent.delivery_zone = self.delivery_zone if hasattr(self, "delivery_zone") else self.game.delivery_zone.to_dict()
+        
+        # Update agent state only if train is alive and game contains train
+        if not self.is_dead and self.game.contains_train(self.nickname):
+            self.agent.update_agent()
 
     def run(self):
         """Main AI client loop"""
         while self.running and self.room.running:
-            # try:
-            # Update the client state from the game
+            # Execute a single update cycle
             self.update_state()
-
-            # Make sure the agent has access to the correct properties
-            self.agent.all_trains = self.all_trains
-            self.agent.passengers = self.passengers
-            self.agent.cell_size = self.cell_size
-            self.agent.game_width = self.game_width
-            self.agent.game_height = self.game_height
-
-            # Update agent state only if train is alive and game contains train
-            if not self.is_dead and self.game.contains_train(self.nickname):
-                self.agent.update_agent()
-
-            # Add automatic respawn logic
-            # logger.debug(f"Is dead: {self.is_dead}, waiting for respawn: {self.waiting_for_respawn}")
-            if (
-                self.is_dead
-                and self.waiting_for_respawn
-            ):
-                # logger.debug(f"AI client {self.nickname} waiting for respawn")
-                elapsed = time.time() - self.death_time
-                if elapsed >= self.respawn_cooldown:
-                    # logger.debug(
-                    #     f"AI client {self.nickname} respawn cooldown over, checking game state"
-                    # )
-                    if self.in_waiting_room:
-                        logger.debug(
-                            f"AI client {self.nickname} in waiting room, trying to start game"
-                        )
-                        # Start game if in waiting room
-                        if (
-                            not self.room.game_thread
-                            or not self.room.game_thread.is_alive()
-                        ):
-                            if self.room.get_player_count() >= self.room.nb_players_max:
-                                self.room.start_game()
-
-                    logger.debug(f"AI client {self.nickname} trying to spawn")
-                    cooldown = self.room.game.get_train_cooldown(self.nickname)
-                    if cooldown <= 0:
-                        self.room.game.add_train(self.nickname)
-                        self.waiting_for_respawn = False
-                        self.is_dead = False
-                        logger.info(f"AI client {self.nickname} respawned")
-
-            # else:
-            #     logger.debug(f"AI client {self.nickname} is alive, waiting for next update")
-
+            
             # Sleep to avoid high CPU usage
             time.sleep(0.1)
-            # except Exception as e:
-            #     logger.error(f"Error in AI client {self.nickname}: {e}")
-            #     time.sleep(0.5)
 
     def stop(self):
         """Stop the AI client"""

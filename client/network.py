@@ -46,12 +46,6 @@ class NetworkManager:
             # Store server address for sending
             self.server_addr = (self.host, self.port)
 
-            # Log successful connection with local client port information
-            local_ip, local_port = self.socket.getsockname()
-            logger.info(
-                f"Successfully connected to server at {self.host}:{self.port} from local {local_ip}:{local_port}"
-            )
-
             self.last_ping_time = time.time()
 
             # Start receive thread

@@ -183,7 +183,7 @@ class Client:
                 if self.network.connect():
                     # Verify connection by attempting to receive data
                     if self.network.verify_connection():
-                        logger.info("Connected to server successfully")
+                        logger.info(f"Connected to server at {self.config.host}:{self.config.port}")
                         connection_successful = True
                         break
                     else:
@@ -295,16 +295,6 @@ class Client:
         self.game_start_time = time.time()  # Use client's time for consistency
 
         logger.info(f"Game lifetime set to {self.game_life_time} seconds")
-
-    def get_remaining_time(self):
-        """Calculate remaining game time in seconds"""
-        if not hasattr(self, "game_life_time") or not hasattr(self, "game_start_time"):
-            return None
-
-        elapsed = time.time() - self.game_start_time
-        remaining = max(0, self.game_life_time - elapsed)
-
-        return remaining
 
     def handle_server_disconnection(self):
         """Handle server disconnection gracefully"""

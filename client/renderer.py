@@ -10,6 +10,7 @@ from common.move import Move
 
 # Configure logger
 logger = logging.getLogger("client.renderer")
+logger.setLevel(logging.DEBUG)
 
 
 class Renderer:
@@ -597,14 +598,9 @@ class Renderer:
             y_offset += 25
 
         # Draw remaining time below the leaderboard
-        if hasattr(self.client, "game_start_time") and hasattr(
-            self.client, "game_life_time"
-        ):
-            # Calculate remaining time
-            elapsed = time.time() - self.client.game_start_time
-            remaining = max(0, self.client.game_life_time - elapsed)
-
+        if hasattr(self.client, "remaining_game_time"):
             # Format time as mm:ss
+            remaining = self.client.remaining_game_time
             minutes = int(remaining) // 60
             seconds = int(remaining) % 60
             time_text = f"Time remaining: {minutes:02d}:{seconds:02d}"

@@ -11,6 +11,7 @@ from common import stats_manager
 
 # Configure logger
 logger = logging.getLogger("server.room")
+logger.setLevel(logging.DEBUG)
 
 # List of names for AI-controlled clients
 AI_NAMES = [
@@ -61,22 +62,29 @@ class Room:
         self.addr_to_sciper = addr_to_sciper
         self.record_disconnection = record_disconnection
 
+        # Initialize random seed if provided in config, otherwise generate one
+        if self.config.seed is None:
+            self.seed = random.randint(0, 2**32 - 1)
+        else:
+            self.seed = self.config.seed
+        self.random = random.Random(self.seed)
+
+        logger.info(f"Room {self.id} created with seed {self.seed}")
+
         self.clients = {}  # {addr: nickname}
         self.client_game_modes = {}  # {addr: game_mode}
         self.game_thread = None
 
-        self.waiting_room_thread = None
         self.game_over = False  # Track if the game is over
         self.room_creation_time = time.time()  # Track when the room was created
         self.first_client_join_time = None  # Track when the first client joins
         self.stop_waiting_room = False  # Flag to stop the waiting room thread - Initialized BEFORE thread start
 
-        # Start waiting room broadcast thread
         self.waiting_room_thread = threading.Thread(target=self.broadcast_waiting_room)
         self.waiting_room_thread.daemon = True
         self.waiting_room_thread.start()
 
-        self.game_start_time = None  # Track when the game starts
+        self.tick_counter = 0  # Track the number of ticks since game start
 
         self.has_clients = False  # Track if the room has at least one human player
 
@@ -94,82 +102,224 @@ class Room:
         self.state_thread.daemon = True
         self.state_thread.start()
 
-        # Start the game timer thread
-        self.game_timer_thread = threading.Thread(target=self.game_timer)
-        self.game_timer_thread.daemon = True
-        self.game_timer_thread.start()
-
         # Stop the waiting room thread by setting the flag
         self.stop_waiting_room = True
         # self.waiting_room_thread.join() # Cannot join from the same thread
 
-        if not self.game_thread:
-            self.game = Game(
-                self.config,
-                self.send_cooldown_notification,
-                self.nb_players_max,
-                self.id,
-            )
+        if self.game_thread:
+            return
 
-            self.fill_with_bots()
+        self.game = Game(
+            self.config,
+            self.send_cooldown_notification,
+            self.nb_players_max,
+            self.id,
+            self.seed,
+            self.random,
+        )
+
+        # Reset tick counter            
+        self.game.start_time = time.time()  # Start at tick 0
+        self.game.game_started = True
+        self.game.start_time_ticks = 0
+        self.game.current_tick = 0
+
+        logger.info(f"Game started in room {self.id} at tick {self.tick_counter}")
+
+        # Send game_started_success message - Moved before the grading mode check
+        response = {"type": "game_started_success"}
+        # Send response to all clients
+        for client_addr in list(self.clients.keys()):
+            try:
+                # Skip AI clients - they don't need network messages
+                if (
+                    isinstance(client_addr, tuple)
+                    and len(client_addr) == 2
+                    and client_addr[0] == "AI"
+                ):
+                    continue
+                self.server_socket.sendto(
+                    (json.dumps(response) + "\n").encode(), client_addr
+                )
+            except Exception as e:
+                logger.error(f"Error sending start success to client: {e}")
+        
+        # In grading mode, we add all configured agents to the game
+        if self.config.grading_mode:
+            logger.info("Starting game in grading mode")
+            if len(self.config.agents) > 0:
+                # Clear any existing AI clients first to avoid duplicates
+                self.ai_clients = {}
+                self.game.ai_clients = {}
+                
+                # Add all configured agents
+                for agent in self.config.agents:
+                    ai_nickname = self.get_available_ai_name(agent)
+                    ai_agent_file_name = agent.agent_file_name
+                    logger.info(f"Adding AI client {ai_nickname} with agent {ai_agent_file_name}")
+                    self.add_ai(ai_nickname=ai_nickname, ai_agent_file_name=ai_agent_file_name)
+            else:
+                logger.warning("No agents configured in config.json for grading mode")
+        else:
+            # In normal mode, we add all human players to the game first and then add bots if needed
+            logger.info("Starting game in normal mode")
+            
             self.add_all_trains()
+            
+            current_players = self.get_player_count()
+            nb_bots_needed = self.nb_players_max - current_players
+            self.fill_with_bots(nb_bots_needed)
 
-            # Start the game thread
-            self.game_thread = threading.Thread(target=self.game.run)
-            self.game_thread.daemon = True
-            self.game_thread.start()
+            for ai_name, ai_client in self.game.ai_clients.items():
+                if ai_name not in self.game.trains:
+                    logger.info(f"Adding train for AI client {ai_name}")
 
-            # Record the game start time
-            self.game_start_time = time.time()
+                # Update agent state
+                ai_client.update_state()
+                
+                # Log train status
+                if ai_name in self.game.trains:
+                    logger.info(f"Train {ai_name} initialized at position {self.game.trains[ai_name].position}")
+                else:
+                    logger.warning(f"Failed to add train for AI client {ai_name}")
+        
+        # In grading mode, we run the simulation directly in this thread
+        # Create and start game thread
+        self.game_thread = threading.Thread(target=self.run_game)
+        self.game_thread.daemon = True
+        self.game_thread.start()
 
-            response = {"type": "game_started_success"}
-            # Send response to all clients
-            for client_addr in list(self.clients.keys()):
-                try:
-                    # Skip AI clients - they don't need network messages
-                    if (
-                        isinstance(client_addr, tuple)
-                        and len(client_addr) == 2
-                        and client_addr[0] == "AI"
-                    ):
-                        continue
-                    self.server_socket.sendto(
-                        (json.dumps(response) + "\n").encode(), client_addr
-                    )
-                except Exception as e:
-                    logger.error(f"Error sending start success to client: {e}")
+        logger.info(
+            f"Game started in room {self.id} with {len(self.clients)} clients"
+        )
+            
+    def run_game(self):
+        """Run the game in grading mode - directly in the room thread without using broadcast_game_state"""
+        # Define the standard tick rate (for reference)
+        standard_tickrate = self.config.tick_rate
+        
+        # Calculate total number of updates based on the standard tickrate
+        # This ensures that game duration is consistent regardless of the configured tickrate
+        total_updates = int(self.config.game_duration_seconds * standard_tickrate)
+        
+        # Store the actual game start time for real-time tracking
+        game_start_time = time.time()
+        
+        # Calculate how much game time passes per tick (in seconds)
+        game_seconds_per_tick = 1.0 / standard_tickrate
+        
+        # Calculate how much real time should pass per tick (in seconds)
+        # For higher tickrates, we want to process ticks faster (less real time per tick)
+        # For lower tickrates, we want to process ticks slower (more real time per tick)
+        if self.config.grading_mode:
+            tick_rate = 1000
+        else:
+            tick_rate = self.config.tick_rate
+        real_seconds_per_tick = 1.0 / tick_rate
+        
+        # Log the timing information
+        if tick_rate == standard_tickrate:
+            speed_description = "normal speed"
+        elif tick_rate > standard_tickrate:
+            speed_description = f"{self.config.tick_rate/standard_tickrate:.1f}x faster than normal"
+        else:
+            speed_description = f"{standard_tickrate/self.config.tick_rate:.1f}x slower than normal"
+            
+        logger.debug(f"Game running at {speed_description} (tickrate: {self.config.tick_rate})")
+        logger.debug(f"Game seconds per tick: {game_seconds_per_tick:.4f}s")
+        logger.debug(f"Real seconds per tick: {real_seconds_per_tick*1000:.2f}ms")
+        
+        # Initialize game time to zero
+        game_time_elapsed = 0.0
+        
+        # Run the simulation for the calculated number of ticks
+        for update_count in range(total_updates):
+            tick_start_time = time.time()
+            
+            if not self.running or self.game_over:
+                break
+                
+            # Synchronize update_count and tick_counter
+            self.tick_counter = update_count + 1
+            self.game.current_tick = self.tick_counter
+            
+            # Update game time - this is completely independent of real time
+            # Each tick represents a fixed amount of game time
+            game_time_elapsed += game_seconds_per_tick
 
-            logger.info(
-                f"Game started in room {self.id} with {len(self.clients)} clients"
-            )
+            # Update game state
+            self.game.update()
+            
+            # Calculate remaining game time
+            remaining_game_time = self.config.game_duration_seconds - game_time_elapsed
+            
+            # Prepare the game state to send to clients
+            state = self.game.get_dirty_state()
+            
+            # Add remaining time to state data only if it has changed significantly
+            if self.game.last_remaining_time is None or round(remaining_game_time) != round(self.game.last_remaining_time):
+                state["remaining_time"] = round(remaining_game_time)
+                self.game.last_remaining_time = remaining_game_time
 
-    def game_timer(self):
-        """
-        Thread that monitors game time and ends the game after game_duration_seconds.
-        """
-        while self.running and not self.game_over:
-            if self.game_start_time is not None:
-                elapsed_time = time.time() - self.game_start_time
+            # Create the data packet
+            state_data = {"type": "state", "data": state}
 
-                if elapsed_time >= self.config.game_duration_seconds:
-                    self.end_game()
-                    break
+            if state:  # If data has been modified
+                # Send the state to all clients
+                state_json = json.dumps(state_data) + "\n"
+                for client_addr in list(self.clients.keys()):
+                    try:
+                        # Skip AI clients - they don't need network messages
+                        if (
+                            isinstance(client_addr, tuple)
+                            and len(client_addr) == 2
+                            and client_addr[0] == "AI"
+                        ):
+                            continue
 
-            time.sleep(1)  # Check every second
+                        self.server_socket.sendto(
+                            state_json.encode(), client_addr
+                        )
+                    except Exception as e:
+                        logger.error(f"Error sending state to client: {e}")
+
+            # Calculate how long processing this tick took
+            tick_processing_time = time.time() - tick_start_time
+            
+            # Sleep if necessary to maintain the desired tick rate in real time
+            # Skip sleep in grading mode to run as fast as possible
+            if real_seconds_per_tick > 0 and not self.config.grading_mode:
+                time_to_sleep = max(0, real_seconds_per_tick - tick_processing_time)
+                if time_to_sleep > 0:
+                    time.sleep(time_to_sleep)
+
+        # Game has finished
+        end_time = time.time()
+        total_real_time = end_time - game_start_time
+        logger.info(f"Game completed in {total_real_time:.2f} real seconds")
+        logger.info(f"Game time elapsed: {game_time_elapsed:.2f} seconds")
+        logger.info(f"Time ratio: {game_time_elapsed/total_real_time:.2f}x")
+        logger.info(f"Actual ticks completed: {self.tick_counter}")
+        logger.info(f"Ticks per second: {self.tick_counter/total_real_time:.1f}")
+        logger.info(f"Final scores: {self.game.best_scores}")
+
+        # Log how many times the trains moved
+        for train in self.game.trains.values():
+            logger.info(f"Train {train.nickname} moved {train.moved_count} times")
+            logger.info(f"Train {train.nickname} updated {train.update_count} times\n")
+
+        logger.info(f"Game in room {self.id} ending after {self.tick_counter} ticks, game time: {game_time_elapsed:.2f}s, real time: {total_real_time:.2f}s")
+        self.end_game()
 
     def end_game(self):
         """End the game and send final scores to all clients"""
         if self.game_over:
             return  # Game already ended
 
-        logger.info(
-            f"Game in room {self.id} has ended after {self.config.game_duration_seconds} seconds"
-        )
         self.game_over = True
 
         # Collect final scores
         final_scores = []
-        scores_updated = False
 
         # log the best scores
         logger.debug(f"Best scores: {self.game.best_scores}")
@@ -494,8 +644,6 @@ class Room:
 
     def broadcast_game_state(self):
         """Thread that periodically sends the game state to clients"""
-        self.running = True
-
         # Send initial state to all clients
         initial_state = {
             "type": "initial_state",
@@ -530,8 +678,16 @@ class Room:
                 # If enough time has passed
                 if elapsed >= 1.0 / self.config.tick_rate:
                     # Get the game state with only the modified data
-                    state = self.game.get_state()
+                    state = self.game.get_dirty_state()
                     if state:  # If data has been modified
+                        # Add remaining time to state data only if it has changed significantly (rounded to nearest second)
+                        remaining_seconds = self.config.game_duration_seconds - (self.tick_counter / self.config.tick_rate)
+                        current_remaining_time_rounded = round(remaining_seconds)
+                        if self.game.last_remaining_time is None or current_remaining_time_rounded != round(self.game.last_remaining_time):
+                            logger.debug(f"Remaining time changed: {remaining_seconds}")
+                            state["remaining_time"] = remaining_seconds
+                            self.game.last_remaining_time = remaining_seconds
+
                         # Create the data packet
                         state_data = {"type": "state", "data": state}
 
@@ -561,10 +717,8 @@ class Room:
                 logger.error(f"Error in broadcast_game_state: {e}")
                 time.sleep(1.0 / self.config.tick_rate)
 
-    def fill_with_bots(self):
+    def fill_with_bots(self, nb_bots_needed):
         """Fill the room with bots and start the game"""
-        current_players = self.get_player_count()
-        nb_bots_needed = self.nb_players_max - current_players
         if nb_bots_needed <= 0:
             return
 

@@ -4,13 +4,6 @@ import time
 from client.network import NetworkManager
 from common import move
 
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("game_debug.log"), logging.StreamHandler()],
-)
-
 
 class BaseAgent:
     """Base class for all agents, enforcing the implementation of get_move()."""
@@ -35,6 +28,7 @@ class BaseAgent:
             delivery_zone (list): List of delivery zones in the game
         """
         self.logger = logging.getLogger(logger)
+        self.logger.setLevel(logging.DEBUG)
         self.nickname = nickname
         self.network = network
 
