@@ -46,6 +46,8 @@ class Train:
         self.move_timer = 0
         self.speed = INITIAL_SPEED
         self.last_position = (x, y)
+        self.moved_count = 0
+        self.update_count = 0
 
         self.tick_rate = tick_rate
         # Dirty flags to track modifications
@@ -85,6 +87,7 @@ class Train:
 
     def update(self, trains, screen_width, screen_height, cell_size):
         """Update the train position"""
+        self.update_count += 1
         if not self.alive:
             return
 
@@ -126,6 +129,7 @@ class Train:
             self.move_timer = 0
             self.set_direction(self.new_direction)
             self.move(trains, screen_width, screen_height, cell_size)
+            self.moved_count += 1
 
     def add_wagons(self, nb_wagons=1):
         """Add wagons to the train"""

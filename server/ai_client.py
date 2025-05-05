@@ -109,14 +109,11 @@ class AIClient:
 
         self.agent.delivery_zone = self.game.delivery_zone.to_dict()
 
-        # Start the AI thread only if not in grading mode
         self.running = True
         self.thread = threading.Thread(target=self.run)
         self.thread.daemon = True
         self.thread.start()
         logger.info(f"AI client {nickname} started")
-        # else:
-        #     logger.info(f"AI client {nickname} initialized in grading mode (no thread)")
 
         self.update_state()
 

@@ -600,7 +600,7 @@ class Renderer:
         # Draw remaining time below the leaderboard
         if hasattr(self.client, "remaining_game_time"):
             # Format time as mm:ss
-            remaining = max(0, self.client.remaining_game_time)
+            remaining = self.client.remaining_game_time
             minutes = int(remaining) // 60
             seconds = int(remaining) % 60
             time_text = f"Time remaining: {minutes:02d}:{seconds:02d}"

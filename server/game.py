@@ -274,7 +274,6 @@ class Game:
         """Remove a train and update game size"""
         if nickname in self.trains:
             # Register the death time
-            # In grading mode, use tick-based cooldown
             self.train_death_ticks[nickname] = self.current_tick
             
             # Calculate the expected respawn tick based on the standard tickrate
@@ -291,8 +290,7 @@ class Game:
             logger.debug(f"Expected respawn at tick {expected_respawn_tick} (after {adjusted_cooldown_ticks} ticks, {real_seconds:.2f}s real time)")
 
             # Clean up the last delivery time for this train
-            if nickname in self.last_delivery_ticks:
-                del self.last_delivery_ticks[nickname]
+            self.last_delivery_ticks.pop(nickname, None)
 
             # Notify the client of the cooldown
             self.send_cooldown_notification(
@@ -326,7 +324,6 @@ class Game:
 
     def get_train_cooldown(self, nickname):
         """Get remaining cooldown time for a train"""
-        # In grading mode, use tick-based cooldown
         if nickname in self.train_death_ticks:
             ticks_elapsed = self.current_tick - self.train_death_ticks[nickname]
             

@@ -62,8 +62,8 @@ class Server:
         
         # Set extremely high tick_rate if grading_mode is enabled
         if self.config.grading_mode:
-            logger.info("Grading mode detected. Setting tick_rate to 10000")
-            self.config.tick_rate = 10000
+            logger.info("Grading mode detected. Setting tick_rate to 1000")
+            self.config.tick_rate = 1000
 
         # Verify that all agent files exist before proceeding
         self.verify_agent_files(self.config)

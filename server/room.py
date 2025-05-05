@@ -288,6 +288,11 @@ class Room:
         logger.info(f"Ticks per second: {self.tick_counter/total_real_time:.1f}")
         logger.info(f"Final scores: {self.game.best_scores}")
 
+        # Log how many times the trains moved
+        for train in self.game.trains.values():
+            logger.info(f"Train {train.nickname} moved {train.moved_count} times")
+            logger.info(f"Train {train.nickname} updated {train.update_count} times\n")
+
         logger.info(f"Game ending after {self.tick_counter} ticks, game time: {game_time_elapsed:.2f}s")
         self.end_game()
 
