@@ -235,7 +235,6 @@ class Room:
             # Update game time - this is completely independent of real time
             # Each tick represents a fixed amount of game time
             game_time_elapsed += game_seconds_per_tick
-            logger.debug(f"Game time elapsed: {game_time_elapsed:.2f}s")
 
             # Update game state
             self.game.update()
@@ -278,7 +277,7 @@ class Room:
             
             # Sleep if necessary to maintain the desired tick rate in real time
             # Skip sleep in grading mode to run as fast as possible
-            if real_seconds_per_tick > 0:
+            if real_seconds_per_tick > 0 and not self.config.grading_mode:
                 time_to_sleep = max(0, real_seconds_per_tick - tick_processing_time)
                 if time_to_sleep > 0:
                     time.sleep(time_to_sleep)
@@ -298,7 +297,7 @@ class Room:
             logger.info(f"Train {train.nickname} moved {train.moved_count} times")
             logger.info(f"Train {train.nickname} updated {train.update_count} times\n")
 
-        logger.info(f"Game ending after {self.tick_counter} ticks, game time: {game_time_elapsed:.2f}s")
+        logger.info(f"Game in room {self.id} ending after {self.tick_counter} ticks, game time: {game_time_elapsed:.2f}s, real time: {total_real_time:.2f}s")
         self.end_game()
 
     def end_game(self):
@@ -306,9 +305,6 @@ class Room:
         if self.game_over:
             return  # Game already ended
 
-        logger.info(
-            f"Game in room {self.id} has ended after {self.config.game_duration_seconds} seconds"
-        )
         self.game_over = True
 
         # Collect final scores
