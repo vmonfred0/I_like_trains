@@ -36,12 +36,13 @@ SPAWN_SAFE_ZONE = 3
 SAFE_PADDING = 3
 
 
-def generate_random_non_blue_color():
+def generate_random_non_blue_color(random_gen=None):
     """Generate a random RGB color avoiding blue nuances"""
+    random_instance = random_gen if random_gen is not None else random
     while True:
-        r = random.randint(100, 230)  # Lighter for the trains
-        g = random.randint(100, 230)
-        b = random.randint(0, 150)  # Limit the blue
+        r = random_instance.randint(100, 230)  # Lighter for the trains
+        g = random_instance.randint(100, 230)
+        b = random_instance.randint(0, 150)  # Limit the blue
 
         # If it's not a blue nuance (more red or green than blue)
         if r > b + 50 or g > b + 50:
@@ -50,10 +51,12 @@ def generate_random_non_blue_color():
 
 class Game:
     # TODO(alok): remove nb_players and use config.clients_per_room
-    def __init__(self, config: ServerConfig, send_cooldown_notification, nb_players, room_id):
+    def __init__(self, config: ServerConfig, send_cooldown_notification, nb_players, room_id, seed=None, random_gen=None):
         self.config = config
         self.send_cooldown_notification = send_cooldown_notification
         self.room_id = room_id
+        self.seed = seed
+        self.random = random_gen if random_gen is not None else random.Random(seed)
 
         # Calculate initial game size based on number of clients
         self.game_width = ORIGINAL_GAME_WIDTH + (nb_players * GAME_SIZE_INCREMENT)
@@ -62,7 +65,7 @@ class Game:
         )
 
         self.delivery_zone = DeliveryZone(
-            self.game_width, self.game_height, CELL_SIZE, nb_players
+            self.game_width, self.game_height, CELL_SIZE, nb_players, self.random
         )
         self.cell_size = CELL_SIZE
 
@@ -237,14 +240,14 @@ class Game:
         for _ in range(max_attempts):
             # Position aligned on the grid
             x = (
-                random.randint(
+                self.random.randint(
                     SPAWN_SAFE_ZONE,
                     (self.game_width // self.cell_size) - SPAWN_SAFE_ZONE,
                 )
                 * self.cell_size
             )
             y = (
-                random.randint(
+                self.random.randint(
                     SPAWN_SAFE_ZONE,
                     (self.game_height // self.cell_size) - SPAWN_SAFE_ZONE,
                 )
@@ -298,7 +301,7 @@ class Game:
             if nickname in self.train_colors:
                 train_color = self.train_colors[nickname]
             else:
-                train_color = generate_random_non_blue_color()
+                train_color = generate_random_non_blue_color(self.random)
 
             self.trains[nickname] = Train(
                 spawn_pos[0],
@@ -372,6 +375,8 @@ class Game:
             # Calculate adjusted cooldown ticks
             standard_tickrate = self.config.tick_rate  # Reference tickrate
             tickrate_ratio = standard_tickrate / self.config.tick_rate
+            
+            # Calculate cooldown ticks with proper adjustment for game speed
             adjusted_cooldown_ticks = int(self.config.respawn_cooldown_seconds * self.config.tick_rate * tickrate_ratio)
             
             remaining_ticks = max(0, adjusted_cooldown_ticks - ticks_elapsed)

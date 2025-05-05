@@ -62,6 +62,15 @@ class Room:
         self.addr_to_sciper = addr_to_sciper
         self.record_disconnection = record_disconnection
 
+        # Initialize random seed if provided in config, otherwise generate one
+        if self.config.seed is None:
+            self.seed = random.randint(0, 2**32 - 1)
+        else:
+            self.seed = self.config.seed
+        self.random = random.Random(self.seed)
+
+        logger.info(f"Room {self.id} created with seed {self.seed}")
+
         self.clients = {}  # {addr: nickname}
         self.client_game_modes = {}  # {addr: game_mode}
         self.game_thread = None
@@ -105,6 +114,8 @@ class Room:
             self.send_cooldown_notification,
             self.nb_players_max,
             self.id,
+            self.seed,
+            self.random,
         )
 
         # Reset tick counter            

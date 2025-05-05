@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 from common.agent_config import AgentConfig
 
@@ -13,6 +14,9 @@ class ServerConfig(BaseModel):
 
     # Numbers of trains in each room.
     nb_clients_per_room: int = 2
+
+    # Seed for random number generation. If None, a random seed will be generated.
+    seed: Optional[int] = None
 
     # If True, allows multiple connections from the same IP address.
     allow_multiple_connections: bool = True
