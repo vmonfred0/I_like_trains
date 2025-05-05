@@ -277,7 +277,7 @@ class Game:
             self.train_death_ticks[nickname] = self.current_tick
             
             # Calculate the expected respawn tick based on the standard tickrate
-            standard_tickrate = 60.0  # Reference tickrate
+            standard_tickrate = self.config.tick_rate  # Reference tickrate
             tickrate_ratio = standard_tickrate / self.config.tick_rate
             
             # For tickrate < standard (e.g. 30), the ratio > 1, making cooldown longer in real time
@@ -328,7 +328,7 @@ class Game:
             ticks_elapsed = self.current_tick - self.train_death_ticks[nickname]
             
             # Calculate adjusted cooldown ticks
-            standard_tickrate = 60.0  # Reference tickrate
+            standard_tickrate = self.config.tick_rate  # Reference tickrate
             tickrate_ratio = standard_tickrate / self.config.tick_rate
             adjusted_cooldown_ticks = int(self.config.respawn_cooldown_seconds * self.config.tick_rate * tickrate_ratio)
             
@@ -385,7 +385,7 @@ class Game:
                         self.last_delivery_ticks[train.nickname] = self.current_tick
 
     def get_delivery_cooldown_ticks(self):
-        standard_tickrate = 60.0  # Reference tickrate
+        standard_tickrate = self.config.tick_rate  # Reference tickrate
         tickrate_ratio = standard_tickrate / self.config.tick_rate
         adjusted_cooldown_ticks = int(self.config.delivery_cooldown_seconds * self.config.tick_rate * tickrate_ratio)
         return adjusted_cooldown_ticks
@@ -404,7 +404,7 @@ class Game:
             death_ticks_to_check = self.train_death_ticks.copy()
             for nickname, death_tick in death_ticks_to_check.items():
                 # Calculate the respawn cooldown with adjustment for game speed
-                standard_tickrate = 60.0  # Reference tickrate
+                standard_tickrate = self.config.tick_rate  # Reference tickrate
                 tickrate_ratio = standard_tickrate / self.config.tick_rate
                 
                 # Calculate cooldown ticks with proper adjustment for game speed

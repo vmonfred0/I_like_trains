@@ -59,11 +59,6 @@ logger = setup_server_logger()
 class Server:
     def __init__(self, config: Config):
         self.config = config.server
-        
-        # Set extremely high tick_rate if grading_mode is enabled
-        if self.config.grading_mode:
-            logger.info("Grading mode detected. Setting tick_rate to 1000")
-            self.config.tick_rate = 1000
 
         # Verify that all agent files exist before proceeding
         self.verify_agent_files(self.config)
@@ -642,7 +637,7 @@ class Server:
                             ticks_elapsed = current_tick - room.game.trains[nickname].start_cooldown_tick
                             
                             # Convert duration to ticks using the same approach as in train.py
-                            standard_tickrate = 60.0  # Reference tickrate
+                            standard_tickrate = self.config.tick_rate  # Reference tickrate
                             tickrate_ratio = standard_tickrate / room.game.trains[nickname].tick_rate
                             required_ticks = int(BOOST_COOLDOWN_DURATION * room.game.trains[nickname].tick_rate * tickrate_ratio)
                             

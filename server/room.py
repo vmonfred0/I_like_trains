@@ -185,7 +185,7 @@ class Room:
     def run_game(self):
         """Run the game in grading mode - directly in the room thread without using broadcast_game_state"""
         # Define the standard tick rate (for reference)
-        standard_tickrate = 60.0
+        standard_tickrate = self.config.tick_rate
         
         # Calculate total number of updates based on the standard tickrate
         # This ensures that game duration is consistent regardless of the configured tickrate
@@ -200,12 +200,16 @@ class Room:
         # Calculate how much real time should pass per tick (in seconds)
         # For higher tickrates, we want to process ticks faster (less real time per tick)
         # For lower tickrates, we want to process ticks slower (more real time per tick)
-        real_seconds_per_tick = 1.0 / self.config.tick_rate
+        if self.config.grading_mode:
+            tick_rate = 1000
+        else:
+            tick_rate = self.config.tick_rate
+        real_seconds_per_tick = 1.0 / tick_rate
         
         # Log the timing information
-        if self.config.tick_rate == standard_tickrate:
+        if tick_rate == standard_tickrate:
             speed_description = "normal speed"
-        elif self.config.tick_rate > standard_tickrate:
+        elif tick_rate > standard_tickrate:
             speed_description = f"{self.config.tick_rate/standard_tickrate:.1f}x faster than normal"
         else:
             speed_description = f"{standard_tickrate/self.config.tick_rate:.1f}x slower than normal"
@@ -230,7 +234,8 @@ class Room:
             
             # Update game time - this is completely independent of real time
             # Each tick represents a fixed amount of game time
-            game_time_elapsed += game_seconds_per_tick                
+            game_time_elapsed += game_seconds_per_tick
+            logger.debug(f"Game time elapsed: {game_time_elapsed:.2f}s")
 
             # Update game state
             self.game.update()

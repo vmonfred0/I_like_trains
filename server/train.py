@@ -108,7 +108,7 @@ class Train:
             ticks_elapsed = current_tick - self.start_cooldown_tick
             
             # Convert duration to ticks
-            standard_tickrate = 60.0  # Reference tickrate
+            standard_tickrate = self.tick_rate  # Reference tickrate
             tickrate_ratio = standard_tickrate / self.tick_rate
             required_ticks = int((BOOST_COOLDOWN_DURATION + BOOST_DURATION) * self.tick_rate * tickrate_ratio)
             
