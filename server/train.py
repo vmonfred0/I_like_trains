@@ -3,7 +3,6 @@ Train class for the game "I Like Trains"
 """
 
 import logging
-import time
 
 from common.move import Move
 
@@ -47,6 +46,8 @@ class Train:
         self.move_timer = 0
         self.speed = INITIAL_SPEED
         self.last_position = (x, y)
+        self.moved_count = 0
+        self.update_count = 0
 
         self.tick_rate = tick_rate
         # Dirty flags to track modifications
@@ -64,7 +65,8 @@ class Train:
         self.speed_boost_active = False
         self.speed_boost_timer = 0
         self.boost_cooldown_active = False
-        self.start_cooldown_time = 0
+        self.start_cooldown_tick = 0
+        self.boost_cooldown_ticks = 0
         self.normal_speed = INITIAL_SPEED  # Store normal speed for after boost ends
 
     def get_position(self):
@@ -85,6 +87,7 @@ class Train:
 
     def update(self, trains, screen_width, screen_height, cell_size):
         """Update the train position"""
+        self.update_count += 1
         if not self.alive:
             return
 
@@ -101,24 +104,32 @@ class Train:
 
         # Manage boost cooldown timer
         if self.boost_cooldown_active:
-            current_time = time.time()
-            elapsed_time = current_time - self.start_cooldown_time
-            if elapsed_time >= BOOST_COOLDOWN_DURATION + BOOST_DURATION:
+            current_tick = self.move_timer  # Using move_timer as our tick counter
+            ticks_elapsed = current_tick - self.start_cooldown_tick
+            
+            # Convert duration to ticks
+            standard_tickrate = self.tick_rate  # Reference tickrate
+            tickrate_ratio = standard_tickrate / self.tick_rate
+            required_ticks = int((BOOST_COOLDOWN_DURATION + BOOST_DURATION) * self.tick_rate * tickrate_ratio)
+            
+            if ticks_elapsed >= required_ticks:
                 logger.debug(f"Resetting cooldown for train {self.nickname}")
                 # Reset cooldown
                 self.boost_cooldown_active = False
                 self._dirty["boost_cooldown_active"] = True
                 
-        # Increment movement timer
+        # Increment movement timer - with fixed increment to ensure consistent speed across tickrates
         self.move_timer += 1
 
+        # Simple threshold based on speed only - independent of tickrate
+        move_threshold = 60 / self.speed
+        
         # Check if it's time to move
-        if (
-            self.move_timer >= self.tick_rate / self.speed
-        ):  # self.tick_rate ticks per second
+        if self.move_timer >= move_threshold:
             self.move_timer = 0
             self.set_direction(self.new_direction)
             self.move(trains, screen_width, screen_height, cell_size)
+            self.moved_count += 1
 
     def add_wagons(self, nb_wagons=1):
         """Add wagons to the train"""
@@ -169,7 +180,7 @@ class Train:
             # Start cooldown
             logger.debug(f"Starting cooldown for train {self.nickname}")
             self.boost_cooldown_active = True
-            self.start_cooldown_time = time.time()
+            self.start_cooldown_tick = self.move_timer
             self._dirty["boost_cooldown_active"] = True
 
             return last_wagon_pos

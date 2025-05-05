@@ -72,14 +72,18 @@ class Game:
         self.train_colors = {}  # {nickname: (train_color, wagon_color)}
         self.passengers = []
         self.dead_trains = {}  # {nickname: death_time}
+        self.train_death_ticks = {}  # {nickname: death_tick} - For tick-based cooldown
+        self.current_tick = 0  # Current tick counter
+        self.start_time_ticks = 0  # Start time in ticks
+        self.start_time = None  # Track when the game starts
+        self.last_remaining_time = None  # Track the last remaining time sent to clients
 
         self.desired_passengers = 0
 
         self.lock = threading.Lock()
-        self.last_update = time.time()
 
         self.game_started = False  # Track if game has started
-        self.last_delivery_times = {}  # {nickname: last_delivery_time}
+        self.last_delivery_ticks = {}  # {nickname: last_delivery_tick}
         self.running = True
 
         # self.high_score_all_time = HighScore()
@@ -141,11 +145,6 @@ class Game:
             self._dirty["best_scores"] = False
 
         return state
-
-    def run(self):
-        while self.running:
-            self.update()
-            time.sleep(1 / self.config.tick_rate)
 
     def is_position_safe(self, x, y):
         """Check if a position is safe for spawning"""
@@ -248,14 +247,7 @@ class Game:
         logger.debug(f"Adding train {nickname}")
         # Check the cooldown
         if nickname in self.dead_trains:
-            elapsed = time.time() - self.dead_trains[nickname]
-            if elapsed < self.config.respawn_cooldown_seconds:
-                logger.debug(
-                    f"Train {nickname} still in cooldown for {self.config.respawn_cooldown_seconds - elapsed:.1f}s"
-                )
-                return False
-            else:
-                del self.dead_trains[nickname]
+            del self.dead_trains[nickname]
 
         # Create the new train
         spawn_pos = self.get_safe_spawn_position()
@@ -282,11 +274,23 @@ class Game:
         """Remove a train and update game size"""
         if nickname in self.trains:
             # Register the death time
-            self.dead_trains[nickname] = time.time()
+            self.train_death_ticks[nickname] = self.current_tick
+            
+            # Calculate the expected respawn tick based on the standard tickrate
+            standard_tickrate = self.config.tick_rate  # Reference tickrate
+            tickrate_ratio = standard_tickrate / self.config.tick_rate
+            
+            # For tickrate < standard (e.g. 30), the ratio > 1, making cooldown longer in real time
+            # For tickrate > standard (e.g. 240), the ratio < 1, making cooldown shorter in real time
+            adjusted_cooldown_ticks = int(self.config.respawn_cooldown_seconds * self.config.tick_rate * tickrate_ratio)
+            expected_respawn_tick = self.current_tick + adjusted_cooldown_ticks
+            
+            real_seconds = adjusted_cooldown_ticks / self.config.tick_rate
+            logger.debug(f"Train {nickname} died at tick {self.current_tick}, reason: {death_reason}")
+            logger.debug(f"Expected respawn at tick {expected_respawn_tick} (after {adjusted_cooldown_ticks} ticks, {real_seconds:.2f}s real time)")
 
             # Clean up the last delivery time for this train
-            if nickname in self.last_delivery_times:
-                del self.last_delivery_times[nickname]
+            self.last_delivery_ticks.pop(nickname, None)
 
             # Notify the client of the cooldown
             self.send_cooldown_notification(
@@ -298,14 +302,16 @@ class Game:
                 client = self.ai_clients[nickname]
                 # Change the train's state
                 client.is_dead = True
-                client.death_time = time.time()
+                client.death_tick = self.current_tick
                 client.waiting_for_respawn = True
                 client.respawn_cooldown = self.config.respawn_cooldown_seconds
+            return True
         else:
             logger.error(f"Train {nickname} not found in game")
             return False
 
     def handle_train_death(self, train_nicknames, death_reason):
+        """Handle the death of one or more trains"""
         for nickname in train_nicknames:
             train = self.trains.get(nickname)
             if train:
@@ -318,10 +324,17 @@ class Game:
 
     def get_train_cooldown(self, nickname):
         """Get remaining cooldown time for a train"""
-        if nickname in self.dead_trains:
-            elapsed = time.time() - self.dead_trains[nickname]
-            remaining = max(0, self.config.respawn_cooldown_seconds - elapsed)
-            return remaining
+        if nickname in self.train_death_ticks:
+            ticks_elapsed = self.current_tick - self.train_death_ticks[nickname]
+            
+            # Calculate adjusted cooldown ticks
+            standard_tickrate = self.config.tick_rate  # Reference tickrate
+            tickrate_ratio = standard_tickrate / self.config.tick_rate
+            adjusted_cooldown_ticks = int(self.config.respawn_cooldown_seconds * self.config.tick_rate * tickrate_ratio)
+            
+            remaining_ticks = max(0, adjusted_cooldown_ticks - ticks_elapsed)
+            # Return remaining ticks as seconds for consistency
+            return remaining_ticks / self.config.tick_rate
         return 0
 
     def contains_train(self, nickname):
@@ -329,7 +342,9 @@ class Game:
         return nickname in self.trains
 
     def check_collisions(self):
-        for _, train in self.trains.items():
+        # Créer une copie du dictionnaire pour éviter de le modifier pendant l'itération
+        trains_copy = list(self.trains.items())
+        for _, train in trains_copy:
             train.update(
                 self.trains,
                 self.game_width,
@@ -352,12 +367,11 @@ class Game:
 
             # Check for delivery zone collisions
             if self.delivery_zone.contains(train.position):
-                current_time = time.time()
-                # Check if enough time has passed since the last delivery for this train
+                # Check if enough ticks have passed since the last delivery for this train
                 if (
-                    train.nickname not in self.last_delivery_times
-                    or current_time - self.last_delivery_times.get(train.nickname, 0)
-                    >= self.config.delivery_cooldown_seconds
+                    train.nickname not in self.last_delivery_ticks
+                    or self.current_tick - self.last_delivery_ticks.get(train.nickname, 0)
+                    >= self.get_delivery_cooldown_ticks()
                 ):
                     # Slowly popping wagons and increasing score
                     wagon = train.pop_wagon()
@@ -367,8 +381,14 @@ class Game:
                         if train.score > self.best_scores.get(train.nickname, 0):
                             self.best_scores[train.nickname] = train.score
                             self._dirty["best_scores"] = True
-                        # Update the last delivery time for this train
-                        self.last_delivery_times[train.nickname] = current_time
+                        # Update the last delivery tick for this train
+                        self.last_delivery_ticks[train.nickname] = self.current_tick
+
+    def get_delivery_cooldown_ticks(self):
+        standard_tickrate = self.config.tick_rate  # Reference tickrate
+        tickrate_ratio = standard_tickrate / self.config.tick_rate
+        adjusted_cooldown_ticks = int(self.config.delivery_cooldown_seconds * self.config.tick_rate * tickrate_ratio)
+        return adjusted_cooldown_ticks
 
     def update(self):
         """Update game state"""
@@ -379,3 +399,59 @@ class Game:
             # Update all trains and check for death conditions
             # trains_to_remove = []
             self.check_collisions()
+
+            # Check for train deaths based on tick counter
+            death_ticks_to_check = self.train_death_ticks.copy()
+            for nickname, death_tick in death_ticks_to_check.items():
+                # Calculate the respawn cooldown with adjustment for game speed
+                standard_tickrate = self.config.tick_rate  # Reference tickrate
+                tickrate_ratio = standard_tickrate / self.config.tick_rate
+                
+                # Calculate cooldown ticks with proper adjustment for game speed
+                adjusted_cooldown_ticks = int(self.config.respawn_cooldown_seconds * self.config.tick_rate * tickrate_ratio)
+                
+                if self.current_tick >= death_tick + adjusted_cooldown_ticks:
+                    real_time_elapsed = (self.current_tick - death_tick) / self.config.tick_rate
+                    logger.info(f"Train {nickname} cooldown expired at tick {self.current_tick} (after {self.current_tick - death_tick} ticks, {real_time_elapsed:.2f}s real time)")
+                    
+                    # Remove from death ticks dictionary
+                    if nickname in self.train_death_ticks:
+                        del self.train_death_ticks[nickname]
+                    
+                    # If the train is an AI, handle respawn
+                    if nickname in self.ai_clients:
+                        ai_client = self.ai_clients[nickname]
+                        if ai_client.is_dead and ai_client.waiting_for_respawn:
+                            logger.info(f"Respawning AI client {nickname} after cooldown")
+                            if self.add_train(nickname):
+                                ai_client.waiting_for_respawn = False
+                                ai_client.is_dead = False
+                                logger.debug(f"AI client {nickname} respawned after cooldown")
+
+            # Handle automatic respawn for AI clients
+            for ai_name, ai_client in self.ai_clients.items():
+                # Add automatic respawn logic
+                if ai_client.is_dead and ai_client.waiting_for_respawn:
+                    if ai_client.in_waiting_room:
+                        logger.debug(
+                            f"AI client {ai_name} in waiting room, trying to start game"
+                        )
+                        # Start game if in waiting room
+                        if (
+                            not ai_client.room.game_thread
+                            or not ai_client.room.game_thread.is_alive()
+                        ):
+                            if ai_client.room.get_player_count() >= ai_client.room.nb_players_max:
+                                ai_client.room.start_game()
+
+                    cooldown = self.get_train_cooldown(ai_name)
+                    if cooldown <= 0:
+                        if self.add_train(ai_name):
+                            ai_client.waiting_for_respawn = False
+                            ai_client.is_dead = False
+                            logger.info(f"AI client {ai_name} respawned")
+
+                # Update agent state only if train is alive and game contains train
+                else:
+                    # Call the update_cycle method directly instead of updating manually
+                    ai_client.update_state()
