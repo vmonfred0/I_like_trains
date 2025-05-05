@@ -101,7 +101,7 @@ class Game:
         }
         logger.info(f"Game initialized with tick rate: {self.config.tick_rate}")
 
-    def get_state(self):
+    def get_dirty_state(self):
         """Return game state with only modified data"""
         state = {}
 
@@ -143,6 +143,48 @@ class Game:
         if self._dirty["best_scores"]:
             state["best_scores"] = self.best_scores
             self._dirty["best_scores"] = False
+
+        return state
+
+    def get_state(self):
+        """Return the full game state"""
+        state = {}
+
+        # Add game dimensions
+        state["size"] = {
+            "game_width": self.game_width,
+            "game_height": self.game_height,
+        }
+
+        # Add grid size
+        state["cell_size"] = self.cell_size
+
+        # Add all passengers
+        state["passengers"] = [p.to_dict() for p in self.passengers]
+
+        # Add all trains with their complete data
+        trains_data = {}
+        for name, train in self.trains.items():
+            # Force all train data to be included by setting all dirty flags to True temporarily
+            original_dirty = train._dirty.copy()
+            for flag in train._dirty:
+                train._dirty[flag] = True
+            
+            # Get the full train data
+            train_data = train.to_dict()
+            
+            # Restore original dirty flags
+            train._dirty = original_dirty
+            
+            trains_data[name] = train_data
+
+        state["trains"] = trains_data
+
+        # Add delivery zone
+        state["delivery_zone"] = self.delivery_zone.to_dict()
+
+        # Add best scores
+        state["best_scores"] = self.best_scores
 
         return state
 

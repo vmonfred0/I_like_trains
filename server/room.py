@@ -239,7 +239,7 @@ class Room:
             remaining_game_time = self.config.game_duration_seconds - game_time_elapsed
             
             # Prepare the game state to send to clients
-            state = self.game.get_state()
+            state = self.game.get_dirty_state()
             
             # Add remaining time to state data only if it has changed significantly
             if self.game.last_remaining_time is None or round(remaining_game_time) != round(self.game.last_remaining_time):
@@ -661,7 +661,7 @@ class Room:
                 # If enough time has passed
                 if elapsed >= 1.0 / self.config.tick_rate:
                     # Get the game state with only the modified data
-                    state = self.game.get_state()
+                    state = self.game.get_dirty_state()
                     if state:  # If data has been modified
                         # Add remaining time to state data only if it has changed significantly (rounded to nearest second)
                         remaining_seconds = self.config.game_duration_seconds - (self.tick_counter / self.config.tick_rate)
