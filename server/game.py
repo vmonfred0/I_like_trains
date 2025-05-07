@@ -408,23 +408,19 @@ class Game:
 
             # Check for delivery zone collisions
             if self.delivery_zone.contains(train.position):
-                logger.debug(f"Train {train.nickname} is in delivery zone with {len(train.wagons)} wagons")
                 # Check if enough ticks have passed since the last delivery for this train
                 if (
                     train.nickname not in self.last_delivery_tick
                     or self.get_ticks_since_last_delivery(train.nickname)
                     >= int(self.config.delivery_cooldown_seconds * self.config.reference_tick_rate)
                 ):
-                    logger.debug(f"Train {train.nickname} can deliver")
                     # Slowly popping wagons and increasing score
                     wagon = train.pop_wagon()
                     if wagon:
                         train.update_score(train.score + 1)
-                        logger.debug(f"Train {train.nickname} delivered wagon at position {wagon}")
                         # Update best score if needed
                         if train.score > self.best_scores.get(train.nickname, 0):
                             self.best_scores[train.nickname] = train.score
-                            logger.debug(f"Train {train.nickname} new best score: {train.score}")
                             self._dirty["best_scores"] = True
                         # Update the last delivery tick for this train
                         self.last_delivery_tick[train.nickname] = self.current_tick
