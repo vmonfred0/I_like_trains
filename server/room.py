@@ -209,26 +209,18 @@ class Room:
         game_seconds_per_tick = 1.0 / reference_tickrate
         
         # Calculate how much real time should pass per tick (in seconds)
-        # For higher tickrates, we want to process ticks faster (less real time per tick)
-        # For lower tickrates, we want to process ticks slower (more real time per tick)
-        if self.config.grading_mode:
-            tick_rate = 1000
-        else:
-            tick_rate = self.config.tick_rate
-
-        # Calculate how much real time should pass per tick (in seconds)
-        real_seconds_per_tick = 1 / tick_rate
+        real_seconds_per_tick = 1 / self.config.tick_rate
         
         # Log the timing information
-        if tick_rate == reference_tickrate:
+        if self.config.tick_rate == reference_tickrate:
             speed_description = "normal speed"
-        elif tick_rate > reference_tickrate:
-            speed_description = f"{tick_rate/reference_tickrate:.1f}x faster than normal"
+        elif self.config.tick_rate > reference_tickrate:
+            speed_description = f"{self.config.tick_rate/reference_tickrate:.1f}x faster than normal"
         else:
-            speed_description = f"{reference_tickrate/tick_rate:.1f}x slower than normal"
+            speed_description = f"{reference_tickrate/self.config.tick_rate:.1f}x slower than normal"
             
-        logger.debug(f"Game running at {speed_description} (tickrate: {tick_rate}).")
-        logger.debug(f"Acceleration in comparison to reference tickrate: {tick_rate / reference_tickrate:.2f}")
+        logger.debug(f"Game running at {speed_description} (tickrate: {self.config.tick_rate}).")
+        logger.debug(f"Acceleration in comparison to reference tickrate: {self.config.tick_rate / reference_tickrate:.2f}")
         logger.debug(f"Game seconds per tick: {game_seconds_per_tick:.4f}s")
         logger.debug(f"Real seconds per tick: {real_seconds_per_tick*1000:.2f}ms")
         
@@ -570,7 +562,7 @@ class Room:
         """Broadcast waiting room data to all clients"""
         last_update = time.time()
         while self.running and not self.stop_waiting_room:
-            if self.clients and not self.game_thread:
+            if (self.clients or self.config.grading_mode) and not self.game_thread:
                 if self.is_full():
                     logger.info("Room is full")
                     self.start_game()
@@ -580,30 +572,33 @@ class Room:
                 if (
                     current_time - last_update >= 1.0 / self.config.reference_tick_rate
                 ):  # Limit to TICK_RATE Hz
-                    if self.clients:
-                        # Calculate remaining time before adding bots
-                        remaining_time = 0
-                        if self.has_clients:
-                            # Use the time the first client joined if available, otherwise creation time
-                            start_time = (
-                                self.first_client_join_time
-                                if self.first_client_join_time is not None
-                                else self.room_creation_time
-                            )
-                            elapsed_time = current_time - start_time
-                            remaining_time = max(
-                                0,
-                                self.config.waiting_time_before_bots_seconds
-                                - elapsed_time,
-                            )
+                    # Calculate remaining time before adding bots
+                    remaining_time = 0
+                    if self.has_clients:
+                        # Use the time the first client joined if available, otherwise creation time
+                        start_time = (
+                            self.first_client_join_time
+                            if self.first_client_join_time is not None
+                            else self.room_creation_time
+                        )
+                        elapsed_time = current_time - start_time
+                        remaining_time = max(
+                            0,
+                            self.config.waiting_time_before_bots_seconds
+                            - elapsed_time,
+                        )
 
-                        # If time is up and room is not full, add bots and start the game
-                        if (remaining_time == 0) and not self.game_thread:
-                            logger.info(
-                                f"Waiting time expired for room {self.id}, adding bots and starting game"
-                            )
-                            self.start_game()
+                    # If time is up and room is not full, add bots and start the game
+                    if (remaining_time == 0) and not self.game_thread:
+                        logger.info(
+                            f"Waiting time expired for room {self.id}, adding bots and starting game"
+                        )
+                        self.start_game()
 
+                    if self.config.grading_mode:
+                        last_update = current_time
+                        continue
+                    
                     waiting_room_data = {
                         "type": "waiting_room",
                         "data": {

@@ -63,6 +63,7 @@ class Server:
         # if grading mode, set waiting_time_before_bots_seconds to 0
         if self.config.grading_mode:
             self.config.waiting_time_before_bots_seconds = 0
+            self.config.tick_rate = 1000
 
         # Verify that all agent files exist before proceeding
         self.verify_agent_files(self.config)
