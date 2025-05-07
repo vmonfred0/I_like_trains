@@ -117,8 +117,15 @@ class GameState:
             if self.client.agent.delivery_zone is None:
                 self.client.agent.delivery_zone = self.client.delivery_zone
 
-            # Update agent state only if train is alive
-            if not self.client.is_dead:
+            # Update agent state only if:
+            # 1. Train is alive
+            # 2. Client's nickname is in the train data
+            # 3. The train's position has been updated
+            train_updated = ("trains" in data and 
+                            self.client.nickname in data["trains"] and 
+                            "position" in data["trains"][self.client.nickname])
+                            
+            if not self.client.is_dead and train_updated:
                 self.client.agent.update_agent()
 
     def handle_leaderboard_data(self, data):
