@@ -30,7 +30,7 @@ BOOST_INTENSITY = 3  # Intensity of speed boost
 
 
 class Train:
-    def __init__(self, x, y, nickname, color, handle_train_death, tick_rate):
+    def __init__(self, x, y, nickname, color, handle_train_death, tick_rate, reference_tick_rate):
         logger.debug(f"Creating train {nickname} at position {x}, {y}")
         self.position = (x, y)
         self.wagons = []
@@ -47,9 +47,9 @@ class Train:
         self.speed = INITIAL_SPEED
         self.last_position = (x, y)
         self.moved_count = 0
-        self.update_count = 0
 
         self.tick_rate = tick_rate
+        self.reference_tick_rate = reference_tick_rate
         # Dirty flags to track modifications
         self._dirty = {
             "position": True,
@@ -65,7 +65,7 @@ class Train:
         self.speed_boost_active = False
         self.speed_boost_timer = 0
         self.boost_cooldown_active = False
-        self.start_cooldown_tick = 0
+        self.start_boost_cooldown_tick = 0
         self.boost_cooldown_ticks = 0
         self.normal_speed = INITIAL_SPEED  # Store normal speed for after boost ends
 
@@ -85,16 +85,16 @@ class Train:
         if not self.is_opposite_direction(new_direction):
             self.new_direction = new_direction
 
-    def update(self, trains, screen_width, screen_height, cell_size):
+    def update(self, trains, screen_width, screen_height, cell_size, current_tick):
         """Update the train position"""
-        self.update_count += 1
+        self.current_tick = current_tick
         if not self.alive:
             return
 
         # Manage speed boost timer
         if self.speed_boost_active:
             self.speed_boost_timer -= (
-                1 / self.tick_rate
+                1 / self.reference_tick_rate
             )  # Decrement by seconds (assuming self.tick_rate ticks per second)
             if self.speed_boost_timer <= 0:
                 # Reset speed boost
@@ -104,13 +104,9 @@ class Train:
 
         # Manage boost cooldown timer
         if self.boost_cooldown_active:
-            current_tick = self.move_timer  # Using move_timer as our tick counter
-            ticks_elapsed = current_tick - self.start_cooldown_tick
+            ticks_elapsed = self.current_tick - self.start_boost_cooldown_tick
             
-            # Convert duration to ticks
-            standard_tickrate = self.tick_rate  # Reference tickrate
-            tickrate_ratio = standard_tickrate / self.tick_rate
-            required_ticks = int((BOOST_COOLDOWN_DURATION + BOOST_DURATION) * self.tick_rate * tickrate_ratio)
+            required_ticks = int((BOOST_COOLDOWN_DURATION + BOOST_DURATION) * self.reference_tick_rate)
             
             if ticks_elapsed >= required_ticks:
                 logger.debug(f"Resetting cooldown for train {self.nickname}")
@@ -129,7 +125,6 @@ class Train:
             self.move_timer = 0
             self.set_direction(self.new_direction)
             self.move(trains, screen_width, screen_height, cell_size)
-            self.moved_count += 1
 
     def add_wagons(self, nb_wagons=1):
         """Add wagons to the train"""
@@ -180,12 +175,23 @@ class Train:
             # Start cooldown
             logger.debug(f"Starting cooldown for train {self.nickname}")
             self.boost_cooldown_active = True
-            self.start_cooldown_tick = self.move_timer
+            self.start_boost_cooldown_tick = self.current_tick
             self._dirty["boost_cooldown_active"] = True
 
             return last_wagon_pos
         else:
             return None
+
+    def get_boost_cooldown_time(self):
+        if self.boost_cooldown_active:
+            ticks_elapsed = self.current_tick - self.start_boost_cooldown_tick
+            return max(0, self.get_boost_cooldown_ticks() - ticks_elapsed)
+        else:
+            logger.warning(f"Train {self.nickname} not found in train_boost_cooldown_ticks")
+            return 0
+
+    def get_boost_cooldown_ticks(self):
+        return int(BOOST_COOLDOWN_DURATION * self.reference_tick_rate)
 
     def update_speed(self):
         self.speed = INITIAL_SPEED * SPEED_DECREMENT_COEFFICIENT ** len(self.wagons)
