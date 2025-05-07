@@ -95,6 +95,13 @@ class Server:
         )  # Track disconnected clients by full address tuple (IP, port)
         self.threads = []  # Initialize threads attribute
 
+        # Create the first room
+        self.create_room(True)
+
+        if self.config.grading_mode:
+            logger.info("Server started in grading mode")
+            return
+
         # Ping tracking for active connection checking
         self.ping_interval = self.config.client_timeout_seconds / 2
         self.ping_responses = {}  # Track which clients have responded to pings
@@ -103,9 +110,6 @@ class Server:
         self.ping_thread = threading.Thread(target=self.ping_clients)
         self.ping_thread.daemon = True
         self.ping_thread.start()
-
-        # Create the first room
-        self.create_room(True)
 
         # Start accepting clients
         accept_thread = threading.Thread(target=self.accept_clients, daemon=True)
