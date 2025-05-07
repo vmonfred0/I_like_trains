@@ -583,7 +583,7 @@ class Room:
 
                 current_time = time.time()
                 if (
-                    current_time - last_update >= 1.0 / self.config.retick_rate
+                    current_time - last_update >= 1.0 / self.config.tick_rate
                 ):  # Limit to TICK_RATE Hz
                     if self.clients:
                         # Calculate remaining time before adding bots
