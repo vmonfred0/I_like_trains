@@ -165,7 +165,6 @@ class NetworkManager:
 
                     try:
                         message_data = json.loads(message)
-                        logger.debug(f"Received message: {message_data}")
                         message_type = message_data.get("type")
 
                         if message_type == "state":
