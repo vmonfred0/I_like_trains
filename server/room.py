@@ -196,17 +196,17 @@ class Room:
     def run_game(self):
         """Run the game in grading mode - directly in the room thread without using broadcast_game_state"""
         # Define the standard tick rate (for reference)
-        standard_tickrate = self.config.tick_rate
+        reference_tickrate = self.config.reference_tick_rate
         
         # Calculate total number of updates based on the standard tickrate
         # This ensures that game duration is consistent regardless of the configured tickrate
-        total_updates = int(self.config.game_duration_seconds * standard_tickrate)
+        total_updates = int(self.config.game_duration_seconds * reference_tickrate)
         
         # Store the actual game start time for real-time tracking
         game_start_time = time.time()
         
         # Calculate how much game time passes per tick (in seconds)
-        game_seconds_per_tick = 1.0 / standard_tickrate
+        game_seconds_per_tick = 1.0 / reference_tickrate
         
         # Calculate how much real time should pass per tick (in seconds)
         # For higher tickrates, we want to process ticks faster (less real time per tick)
@@ -215,17 +215,20 @@ class Room:
             tick_rate = 1000
         else:
             tick_rate = self.config.tick_rate
-        real_seconds_per_tick = 1.0 / tick_rate
+
+        # Calculate how much real time should pass per tick (in seconds)
+        real_seconds_per_tick = 1 / tick_rate
         
         # Log the timing information
-        if tick_rate == standard_tickrate:
+        if tick_rate == reference_tickrate:
             speed_description = "normal speed"
-        elif tick_rate > standard_tickrate:
-            speed_description = f"{self.config.tick_rate/standard_tickrate:.1f}x faster than normal"
+        elif tick_rate > reference_tickrate:
+            speed_description = f"{tick_rate/reference_tickrate:.1f}x faster than normal"
         else:
-            speed_description = f"{standard_tickrate/self.config.tick_rate:.1f}x slower than normal"
+            speed_description = f"{reference_tickrate/tick_rate:.1f}x slower than normal"
             
-        logger.debug(f"Game running at {speed_description} (tickrate: {self.config.tick_rate})")
+        logger.debug(f"Game running at {speed_description} (tickrate: {tick_rate}).")
+        logger.debug(f"Acceleration in comparison to reference tickrate: {tick_rate / reference_tickrate:.2f}")
         logger.debug(f"Game seconds per tick: {game_seconds_per_tick:.4f}s")
         logger.debug(f"Real seconds per tick: {real_seconds_per_tick*1000:.2f}ms")
         
@@ -580,7 +583,7 @@ class Room:
 
                 current_time = time.time()
                 if (
-                    current_time - last_update >= 1.0 / self.config.tick_rate
+                    current_time - last_update >= 1.0 / self.config.retick_rate
                 ):  # Limit to TICK_RATE Hz
                     if self.clients:
                         # Calculate remaining time before adding bots

@@ -576,7 +576,7 @@ class Server:
                     )
                     return
 
-                cooldown = room.game.get_train_cooldown(nickname)
+                cooldown = room.game.get_train_respawn_cooldown(nickname)
 
                 if cooldown > 0:
                     # Inform the client of the remaining cooldown
@@ -633,17 +633,7 @@ class Server:
                         
                         if room.game.trains[nickname].boost_cooldown_active:
                             # Use tick-based cooldown calculation
-                            current_tick = room.game.trains[nickname].move_timer
-                            ticks_elapsed = current_tick - room.game.trains[nickname].start_cooldown_tick
-                            
-                            # Convert duration to ticks using the same approach as in train.py
-                            standard_tickrate = self.config.tick_rate  # Reference tickrate
-                            tickrate_ratio = standard_tickrate / room.game.trains[nickname].tick_rate
-                            required_ticks = int(BOOST_COOLDOWN_DURATION * room.game.trains[nickname].tick_rate * tickrate_ratio)
-                            
-                            remaining_ticks = max(0, required_ticks - ticks_elapsed)
-                            # Convert remaining ticks to seconds for user-friendly message
-                            remaining_cooldown = remaining_ticks / room.game.trains[nickname].tick_rate
+                            remaining_cooldown = room.game.trains[nickname].get_boost_cooldown_time()
                             message = f"Cannot drop wagon (cooldown active for {remaining_cooldown:.1f} more seconds)"
                         
                         # Notify the client that the drop_wagon action failed
