@@ -165,6 +165,7 @@ class NetworkManager:
 
                     try:
                         message_data = json.loads(message)
+                        logger.debug(f"Received message: {message_data}")
                         message_type = message_data.get("type")
 
                         if message_type == "state":
@@ -282,7 +283,10 @@ class NetworkManager:
                     except json.JSONDecodeError:
                         logger.error(f"Invalid JSON received: {message}")
                     except Exception as e:
-                        logger.error(f"Error processing message: {e}")
+                        import traceback
+                        logger.error(f"Error processing message: {message!r}")
+                        logger.error(f"Exception details: {e}")
+                        logger.debug(f"Exception traceback: {traceback.format_exc()}")
 
             except socket.timeout:
                 # Don't log timeout errors at all to avoid spam
