@@ -583,7 +583,7 @@ class Room:
 
                 current_time = time.time()
                 if (
-                    current_time - last_update >= 1.0 / self.config.tick_rate
+                    current_time - last_update >= 1.0 / self.config.reference_tick_rate
                 ):  # Limit to TICK_RATE Hz
                     if self.clients:
                         # Calculate remaining time before adding bots
@@ -640,7 +640,7 @@ class Room:
                     last_update = current_time
 
             # Sleep for half the period
-            time.sleep(1.0 / (self.config.tick_rate * 2))
+            time.sleep(1.0 / (self.config.reference_tick_rate * 2))
             # except Exception as e:
             #     logger.error(f"Error in broadcast_waiting_room: {e}")
             #     time.sleep(1.0 / self.config.tick_rate)
@@ -679,12 +679,12 @@ class Room:
                 elapsed = current_time - last_update
 
                 # If enough time has passed
-                if elapsed >= 1.0 / self.config.tick_rate:
+                if elapsed >= 1.0 / self.config.reference_tick_rate:
                     # Get the game state with only the modified data
                     state = self.game.get_dirty_state()
                     if state:  # If data has been modified
                         # Add remaining time to state data only if it has changed significantly (rounded to nearest second)
-                        remaining_seconds = self.config.game_duration_seconds - (self.tick_counter / self.config.tick_rate)
+                        remaining_seconds = self.config.game_duration_seconds - (self.tick_counter / self.config.reference_tick_rate)
                         current_remaining_time_rounded = round(remaining_seconds)
                         if self.game.last_remaining_time is None or current_remaining_time_rounded != round(self.game.last_remaining_time):
                             logger.debug(f"Remaining time changed: {remaining_seconds}")
@@ -715,10 +715,10 @@ class Room:
                     last_update = current_time
 
                 # Wait a bit to avoid overloading the CPU
-                time.sleep(1.0 / (self.config.tick_rate * 2))
+                time.sleep(1.0 / (self.config.reference_tick_rate * 2))
             except Exception as e:
                 logger.error(f"Error in broadcast_game_state: {e}")
-                time.sleep(1.0 / self.config.tick_rate)
+                time.sleep(1.0 / self.config.reference_tick_rate)
 
     def fill_with_bots(self, nb_bots_needed):
         """Fill the room with bots and start the game"""
