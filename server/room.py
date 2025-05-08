@@ -99,10 +99,6 @@ class Room:
 
     def start_game(self):
         logger.debug("Starting game...")
-        # Start the state thread
-        self.state_thread = threading.Thread(target=self.broadcast_game_state)
-        self.state_thread.daemon = True
-        self.state_thread.start()
 
         # Stop the waiting room thread by setting the flag
         self.stop_waiting_room = True
