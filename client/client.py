@@ -13,6 +13,7 @@ from client.game_state import GameState
 
 from common.config import Config
 from common.client_config import GameMode
+from common.constants import REFERENCE_TICK_RATE
 
 
 # Configure logging
@@ -231,7 +232,7 @@ class Client:
         clock = pygame.time.Clock()
         while self.running:
             self.update()
-            clock.tick(self.config.tick_rate)
+            clock.tick(REFERENCE_TICK_RATE)
 
         # Close connection
         self.network.disconnect()

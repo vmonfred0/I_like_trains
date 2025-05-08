@@ -57,7 +57,7 @@ class AINetworkInterface:
         """Request to spawn the train using the server's function"""
         logger.debug(f"AI client {self.nickname} sending spawn request")
         if self.nickname not in self.room.game.trains:
-            cooldown = self.room.game.get_train_cooldown(self.nickname)
+            cooldown = self.room.game.get_train_respawn_cooldown(self.nickname)
             if cooldown <= 0:
                 return self.room.game.add_train(self.nickname)
         return False
