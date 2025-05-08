@@ -211,10 +211,10 @@ class Room:
         else:
             speed_description = f"{reference_tickrate/self.config.tick_rate:.1f}x slower than normal"
             
-        logger.debug(f"Game running at {speed_description} (tickrate: {self.config.tick_rate}).")
-        logger.debug(f"Acceleration in comparison to reference tickrate: {self.config.tick_rate / reference_tickrate:.2f}")
-        logger.debug(f"Game seconds per tick: {game_seconds_per_tick:.4f}s")
-        logger.debug(f"Real seconds per tick: {real_seconds_per_tick*1000:.2f}ms")
+        logger.info(f"Game running at {speed_description} (tickrate: {self.config.tick_rate}).")
+        logger.info(f"Acceleration in comparison to reference tickrate: {self.config.tick_rate / reference_tickrate:.2f}")
+        logger.info(f"Game seconds per tick: {game_seconds_per_tick:.4f}s")
+        logger.info(f"Real seconds per tick: {real_seconds_per_tick*1000:.2f}ms")
         
         # Initialize game time to zero
         game_time_elapsed = 0.0
