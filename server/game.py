@@ -1,17 +1,13 @@
-"""
-Game class for the game "I Like Trains"
-"""
-
 import random
 import threading
-import time
+import logging
 
 from common.server_config import ServerConfig
+from common.constants import REFERENCE_TICK_RATE
+
 from server.train import Train
 from server.passenger import Passenger
-import logging
 from server.delivery_zone import DeliveryZone
-from server.high_score import HighScore
 
 
 # Use the logger configured in server.py
@@ -310,7 +306,7 @@ class Game:
                 train_color,
                 self.handle_train_death,
                 self.config.tick_rate,
-                self.config.reference_tick_rate
+                REFERENCE_TICK_RATE
             )
             self.update_passengers_count()
             return True
@@ -324,7 +320,7 @@ class Game:
             
             # For tickrate < standard (e.g. 30), the ratio > 1, making cooldown longer in real time
             # For tickrate > standard (e.g. 240), the ratio < 1, making cooldown shorter in real time
-            cooldown_ticks = int(self.config.respawn_cooldown_seconds * self.config.reference_tick_rate)
+            cooldown_ticks = int(self.config.respawn_cooldown_seconds * REFERENCE_TICK_RATE)
             expected_respawn_tick = self.current_tick + cooldown_ticks
             
             real_seconds = cooldown_ticks / self.config.tick_rate
@@ -370,11 +366,11 @@ class Game:
             ticks_elapsed = self.current_tick - self.train_death_ticks[nickname]
             
             # Calculate cooldown ticks with proper adjustment for game speed
-            cooldown_ticks = int(self.config.respawn_cooldown_seconds * self.config.reference_tick_rate)
+            cooldown_ticks = int(self.config.respawn_cooldown_seconds * REFERENCE_TICK_RATE)
             
             remaining_ticks = max(0, cooldown_ticks - ticks_elapsed)
             # Return remaining ticks as seconds for consistency
-            return remaining_ticks / self.config.reference_tick_rate
+            return remaining_ticks / REFERENCE_TICK_RATE
         return 0
 
     def contains_train(self, nickname):
@@ -412,7 +408,7 @@ class Game:
                 if (
                     train.nickname not in self.last_delivery_tick
                     or self.get_ticks_since_last_delivery(train.nickname)
-                    >= int(self.config.delivery_cooldown_seconds * self.config.reference_tick_rate)
+                    >= int(self.config.delivery_cooldown_seconds * REFERENCE_TICK_RATE)
                 ):
                     # Slowly popping wagons and increasing score
                     wagon = train.pop_wagon()
@@ -446,7 +442,7 @@ class Game:
             death_ticks_to_check = self.train_death_ticks.copy()
             for nickname, death_tick in death_ticks_to_check.items():                
                 # Calculate cooldown ticks with proper adjustment for game speed
-                cooldown_ticks = int(self.config.respawn_cooldown_seconds * self.config.reference_tick_rate)
+                cooldown_ticks = int(self.config.respawn_cooldown_seconds * REFERENCE_TICK_RATE)
                 
                 if self.current_tick >= death_tick + cooldown_ticks:
                     real_time_elapsed = (self.current_tick - death_tick) / self.config.tick_rate

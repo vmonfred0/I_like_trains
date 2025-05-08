@@ -5,6 +5,7 @@ Train class for the game "I Like Trains"
 import logging
 
 from common.move import Move
+from common.constants import REFERENCE_TICK_RATE
 
 # Configure logging
 logging.basicConfig(
@@ -118,7 +119,7 @@ class Train:
         self.move_timer += 1
 
         # Simple threshold based on speed only - independent of tickrate
-        move_threshold = 60 / self.speed
+        move_threshold = REFERENCE_TICK_RATE / self.speed
         
         # Check if it's time to move
         if self.move_timer >= move_threshold:

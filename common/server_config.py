@@ -34,15 +34,6 @@ class ServerConfig(BaseModel):
     # - Lower values make the game run slower than normal (e.g., 30 = 0.5x speed)
     # - Lower speeds can be useful for debugging purposes
     tick_rate: int = 60
-    
-    # The standard tick rate used as a reference for game timing calculations.
-    # This value ensures consistent game duration regardless of the actual tick_rate.
-    # - The game's internal time calculations are always based on this reference value
-    # - When tick_rate equals reference_tick_rate, the game runs at normal speed
-    # - When tick_rate is higher/lower than reference_tick_rate, the game runs faster/slower
-    # - In grading mode, tick_rate is set to a very high value while reference_tick_rate stays the same,
-    #   causing the game to run much faster while maintaining consistent game logic
-    reference_tick_rate: int = 60
 
     # Flag to enable the simulation mode for grading. 
     # In normal mode, we add all human players to the game first and then add bots if needed. 
