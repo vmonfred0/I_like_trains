@@ -47,7 +47,6 @@ class Train:
         self.move_timer = 0
         self.speed = INITIAL_SPEED
         self.last_position = (x, y)
-        self.moved_count = 0
 
         self.tick_rate = tick_rate
         self.reference_tick_rate = reference_tick_rate
@@ -202,7 +201,7 @@ class Train:
         """Regular interval movement"""
         if not self.alive:
             return
-
+        
         # Save the last position before moving
         if isinstance(self.position, tuple) and len(self.position) == 2:
             self.last_position = self.position
