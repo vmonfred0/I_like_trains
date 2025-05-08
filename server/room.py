@@ -177,7 +177,7 @@ class Room:
                     logger.info(f"Adding train for AI client {ai_name}")
 
                 # Update agent state
-                ai_client.update_state()
+                ai_client.update_state(self.game.get_state())
                 
                 # Log train status
                 if ai_name in self.game.trains:
@@ -262,6 +262,10 @@ class Room:
             state_data = {"type": "state", "data": state}
 
             if state:  # If data has been modified
+                # Update all AI clients
+                for ai_client in self.ai_clients.values():
+                    ai_client.update_state(state_data)
+                
                 # Send the state to all clients
                 state_json = json.dumps(state_data) + "\n"
                 for client_addr in list(self.clients.keys()):

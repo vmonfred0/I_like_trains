@@ -486,6 +486,6 @@ class Game:
                             logger.info(f"AI client {ai_name} respawned")
 
                 # Update agent state only if train is alive and game contains train
-                else:
-                    # Call the update_cycle method directly instead of updating manually
-                    ai_client.update_state()
+                # else:
+                #     # Call the update_cycle method directly instead of updating manually
+                #     ai_client.update_state(self.to_dict())
