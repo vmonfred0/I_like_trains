@@ -126,19 +126,18 @@ class AIClient:
 
         # Initialize collections if they don't exist yet
         if not hasattr(self.agent, "all_trains") or self.agent.all_trains is None:
-            logger.debug("Initializing all_trains")
             self.agent.all_trains = {}
-        if not hasattr(self.agent, "passengers"):
+        if not hasattr(self.agent, "passengers") or self.agent.passengers is None:
             self.agent.passengers = []
-        if not hasattr(self.agent, "delivery_zone"):
+        if not hasattr(self.agent, "delivery_zone") or self.agent.delivery_zone is None:
             self.agent.delivery_zone = []
-        if not hasattr(self.agent, "cell_size"):
+        if not hasattr(self.agent, "cell_size") or self.agent.cell_size is None:
             self.agent.cell_size = None
-        if not hasattr(self.agent, "game_width"):
+        if not hasattr(self.agent, "game_width") or self.agent.game_width is None:
             self.agent.game_width = None
-        if not hasattr(self.agent, "game_height"):
+        if not hasattr(self.agent, "game_height") or self.agent.game_height is None:
             self.agent.game_height = None
-        if not hasattr(self.agent, "best_scores"):
+        if not hasattr(self.agent, "best_scores") or self.agent.best_scores is None:
             self.agent.best_scores = []
 
         # Update trains if present in the state data
