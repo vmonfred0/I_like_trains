@@ -175,9 +175,6 @@ class Room:
             for ai_name, ai_client in self.game.ai_clients.items():
                 if ai_name not in self.game.trains:
                     logger.info(f"Adding train for AI client {ai_name}")
-
-                # Update agent state
-                ai_client.update_state(self.game.get_state())
                 
                 # Log train status
                 if ai_name in self.game.trains:
