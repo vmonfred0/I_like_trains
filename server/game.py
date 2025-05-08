@@ -313,7 +313,7 @@ class Game:
         return False
 
     def send_respawn_cooldown(self, nickname, death_reason):
-        """Remove a train and update game size"""
+        """Send respawn cooldown to client"""
         if nickname in self.trains:
             # Register the death time
             self.train_death_ticks[nickname] = self.current_tick
