@@ -99,10 +99,6 @@ class Room:
 
     def start_game(self):
         logger.debug("Starting game...")
-        # Start the state thread
-        self.state_thread = threading.Thread(target=self.broadcast_game_state)
-        self.state_thread.daemon = True
-        self.state_thread.start()
 
         # Stop the waiting room thread by setting the flag
         self.stop_waiting_room = True
@@ -175,9 +171,6 @@ class Room:
             for ai_name, ai_client in self.game.ai_clients.items():
                 if ai_name not in self.game.trains:
                     logger.info(f"Adding train for AI client {ai_name}")
-
-                # Update agent state
-                ai_client.update_state()
                 
                 # Log train status
                 if ai_name in self.game.trains:
@@ -204,9 +197,6 @@ class Room:
         # This ensures that game duration is consistent regardless of the configured tickrate
         total_updates = int(self.config.game_duration_seconds * reference_tickrate)
         
-        # Store the actual game start time for real-time tracking
-        game_start_time = time.time()
-        
         # Calculate how much game time passes per tick (in seconds)
         game_seconds_per_tick = 1.0 / reference_tickrate
         
@@ -221,18 +211,19 @@ class Room:
         else:
             speed_description = f"{reference_tickrate/self.config.tick_rate:.1f}x slower than normal"
             
-        logger.debug(f"Game running at {speed_description} (tickrate: {self.config.tick_rate}).")
-        logger.debug(f"Acceleration in comparison to reference tickrate: {self.config.tick_rate / reference_tickrate:.2f}")
-        logger.debug(f"Game seconds per tick: {game_seconds_per_tick:.4f}s")
-        logger.debug(f"Real seconds per tick: {real_seconds_per_tick*1000:.2f}ms")
+        logger.info(f"Game running at {speed_description} (tickrate: {self.config.tick_rate}).")
+        logger.info(f"Acceleration in comparison to reference tickrate: {self.config.tick_rate / reference_tickrate:.2f}")
+        logger.info(f"Game seconds per tick: {game_seconds_per_tick:.4f}s")
+        logger.info(f"Real seconds per tick: {real_seconds_per_tick*1000:.2f}ms")
         
         # Initialize game time to zero
         game_time_elapsed = 0.0
         
+        # Store the actual game start time for real-time tracking
+        game_start_time = time.time()
+        
         # Run the simulation for the calculated number of ticks
         for update_count in range(total_updates):
-            tick_start_time = time.time()
-            
             if not self.running or self.game_over:
                 break
                 
@@ -262,6 +253,10 @@ class Room:
             state_data = {"type": "state", "data": state}
 
             if state:  # If data has been modified
+                # Update all AI clients
+                for ai_client in self.ai_clients.values():
+                    ai_client.update_state(state_data)
+                
                 # Send the state to all clients
                 state_json = json.dumps(state_data) + "\n"
                 for client_addr in list(self.clients.keys()):
@@ -279,16 +274,23 @@ class Room:
                         )
                     except Exception as e:
                         logger.error(f"Error sending state to client: {e}")
-
-            # Calculate how long processing this tick took
-            tick_processing_time = time.time() - tick_start_time
             
             # Sleep if necessary to maintain the desired tick rate in real time
             # Skip sleep in grading mode to run as fast as possible
-            if real_seconds_per_tick > 0 and not self.config.grading_mode:
-                time_to_sleep = max(0, real_seconds_per_tick - tick_processing_time)
-                if time_to_sleep > 0:
-                    time.sleep(time_to_sleep)
+            if not self.config.grading_mode:
+                if real_seconds_per_tick > 0:
+                    # Calculate elapsed real time since game start
+                    elapsed_real_time = time.time() - game_start_time
+                    # Calculate target real time based on current update count and target tick rate
+                    target_real_time = (update_count + 1) * real_seconds_per_tick
+                    # Calculate time to sleep to catch up with the target time
+                    time_to_sleep = max(0, target_real_time - elapsed_real_time)
+                    
+                    if time_to_sleep > 0:
+                        time.sleep(time_to_sleep)
+                else:
+                    # log that the loop is late
+                    logger.warning(f"Game loop is late by {-time_to_sleep:.2f} seconds")
 
         # Game has finished
         end_time = time.time()
