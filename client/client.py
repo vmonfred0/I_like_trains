@@ -36,8 +36,10 @@ class Client:
         # If we launch an observer, we want the host to be local_host, otherwise
         if self.game_mode == GameMode.OBSERVER:
             host = "localhost"
+            logger.info("Observer mode: connecting to localhost")
         else:
             host = self.config.host
+            logger.info(f"Client mode: connecting to {host}")
 
         # Initialize state variables
         self.running = True
