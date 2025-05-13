@@ -116,10 +116,18 @@ class GameState:
                 self.client.agent.game_height = self.client.game_height
             if self.client.agent.delivery_zone is None:
                 self.client.agent.delivery_zone = self.client.delivery_zone
-
-            # Update agent state only if train is alive
-            if not self.client.is_dead:
+            
+            # Check if the train is in the client's stored trains collection
+            train_exists = self.client.nickname in self.client.trains
+                            
+            if not self.client.is_dead and train_exists:
                 self.client.agent.update_agent()
+            else:
+                # Log why the train is not updated
+                if self.client.is_dead:
+                    logger.debug(f"Not updating agent for client {self.client.nickname}: train is dead")
+                else:
+                    logger.debug(f"Not updating agent for client {self.client.nickname}: train is not in the game trains")
 
     def handle_leaderboard_data(self, data):
         """Handle leaderboard data received from the server"""
