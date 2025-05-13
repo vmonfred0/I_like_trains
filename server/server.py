@@ -662,7 +662,7 @@ class Server:
                         if room.game.trains[nickname].boost_cooldown_active:
                             # Use tick-based cooldown calculation
                             remaining_cooldown = room.game.trains[nickname].get_boost_cooldown_time()
-                            message = f"Cannot drop wagon (cooldown active for {remaining_cooldown:.1f} more seconds)"
+                            message = f"Cannot drop wagon (cooldown active for {remaining_cooldown:.1f} ticks)"
                         
                         # Notify the client that the drop_wagon action failed
                         response = {
