@@ -8,6 +8,7 @@ import logging
 import uuid
 import signal
 import random
+import urllib.request
 from common import stats_manager
 from common.config import Config
 from server.passenger import Passenger
@@ -114,8 +115,26 @@ class Server:
         # Start accepting clients
         accept_thread = threading.Thread(target=self.accept_clients, daemon=True)
         accept_thread.start()
-        logger.info(f"Server started on {self.config.host}:{self.config.port}")
+        
+        # Get public IP and log server start
+        public_ip = self.get_public_ip()
+        if public_ip:
+            logger.info(f"Server started on {self.config.host}:{self.config.port} (Public IP: {public_ip})")
+        else:
+            logger.info(f"Server started on {self.config.host}:{self.config.port} (Could not determine public IP)")
 
+    def get_public_ip(self):
+        """
+        Get the public IP address of this server using an external service
+        """
+        try:
+            with urllib.request.urlopen('https://api.ipify.org') as response:
+                ip = response.read().decode('utf-8')
+                return ip
+        except Exception as e:
+            logger.warning(f"Could not determine public IP address: {e}")
+            return None
+            
     def verify_agent_files(self, config):
         """
         Verifies that all agent files specified in the configuration exist in the common/agents directory.
