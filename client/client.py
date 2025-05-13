@@ -13,6 +13,7 @@ from client.game_state import GameState
 
 from common.config import Config
 from common.client_config import GameMode
+from common.constants import REFERENCE_TICK_RATE
 
 
 # Configure logging
@@ -35,8 +36,10 @@ class Client:
         # If we launch an observer, we want the host to be local_host, otherwise
         if self.game_mode == GameMode.OBSERVER:
             host = "localhost"
+            logger.info("Observer mode: connecting to localhost")
         else:
             host = self.config.host
+            logger.info(f"Client mode: connecting to {host}")
 
         # Initialize state variables
         self.running = True
@@ -231,7 +234,7 @@ class Client:
         clock = pygame.time.Clock()
         while self.running:
             self.update()
-            clock.tick(self.config.tick_rate)
+            clock.tick(REFERENCE_TICK_RATE)
 
         # Close connection
         self.network.disconnect()

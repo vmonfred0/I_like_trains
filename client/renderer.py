@@ -560,7 +560,7 @@ class Renderer:
             )
 
             # Display player name with train color
-            name_text = player_font.render(nickname[:10], True, train_color)
+            name_text = player_font.render(nickname[:15], True, train_color)
             self.client.screen.blit(
                 name_text,
                 (
