@@ -228,16 +228,19 @@ class Train:
             self.wagons.insert(0, self.position)
             self.wagons.pop()
             self._dirty["wagons"] = True
-
+            
         # Update position
         self.set_position(new_position)
-
+        
     def to_dict(self):
         """Convert train to dictionary, returning only modified data"""
         data = {}
         if self._dirty["position"]:
             data["position"] = self.position
             self._dirty["position"] = False
+            # Always include direction with position updates to ensure client stays in sync
+            data["direction"] = self.direction
+            self._dirty["direction"] = False
         if self._dirty["wagons"]:
             # Verify that all wagons have valid positions
             valid_wagons = []
@@ -272,13 +275,13 @@ class Train:
             data["boost_cooldown_active"] = self.boost_cooldown_active
             self._dirty["boost_cooldown_active"] = False
         return data
-
+        
     def set_position(self, new_position):
         """Update train position"""
         if self.position != new_position:
             self.position = new_position
             self._dirty["position"] = True
-
+            
     def set_direction(self, direction):
         """Change train direction"""
         if self.direction != direction:
