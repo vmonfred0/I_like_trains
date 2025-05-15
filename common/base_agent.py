@@ -56,8 +56,10 @@ class BaseAgent:
         """
         new_direction = self.get_move()
             
-        if new_direction not in move.Move:
-            logging.error("get_move() did not return a valid move!")
+        # Check if it's a valid Move enum
+        if not isinstance(new_direction, move.Move):
+            move_names = [f'<Move.{name}>' for name in move.Move.__members__]
+            self.logger.error(f"get_move() did not return a valid move. Got: {new_direction}. Expected one of: [{', '.join(move_names)}]")
             return
 
         if new_direction == move.Move.DROP:
