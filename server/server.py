@@ -163,7 +163,7 @@ class Server:
         """
         room_id = str(uuid.uuid4())[:8]
 
-        nb_players_per_room = self.config.nb_clients_per_room
+        nb_players_per_room = self.config.nb_players_per_room
         logger.info(f"Creating room {room_id} with size {nb_players_per_room}.")
 
         new_room = Room(
@@ -187,13 +187,13 @@ class Server:
         # First try to find a non-full room
         for room in self.rooms.values():
             if (
-                room.nb_players_max == self.config.nb_clients_per_room
+                room.nb_players_max == self.config.nb_players_per_room
                 and not room.is_full()
                 and not room.game_thread
             ):
                 return room
         logger.debug(
-            f"No suitable room found for {self.config.nb_clients_per_room} clients"
+            f"No suitable room found for {self.config.nb_players_per_room} clients"
         )
         # If no suitable room found, create a new one
         return self.create_room(True)
