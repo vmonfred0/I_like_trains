@@ -185,12 +185,6 @@ class AIClient:
         # Update agent state only if train is alive and game contains train
         if not self.is_dead and self.game.contains_train(self.nickname):
             self.agent.update_agent()
-        else:
-            # Log why the train is not updated
-            if self.is_dead:
-                logger.debug(f"Not updating agent for AI client {self.nickname}: train is dead")
-            else:
-                logger.debug(f"Not updating agent for AI client {self.nickname}: train is not in the game")
 
     def stop(self):
         """Stop the AI client"""
