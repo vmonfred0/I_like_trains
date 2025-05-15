@@ -216,10 +216,6 @@ class Train:
         new_y = self.position[1] + self.direction[1] * cell_size
         new_position = (new_x, new_y)
 
-        # Check collisions and bounds
-        self.check_collisions_with_trains(new_position, trains)
-        self.check_out_of_bounds(new_position, screen_width, screen_height)
-
         if not self.alive:
             return
 
@@ -231,6 +227,10 @@ class Train:
             
         # Update position
         self.set_position(new_position)
+
+        # Check collisions and bounds
+        self.check_collisions_with_trains(new_position, trains)
+        self.check_out_of_bounds(new_position, screen_width, screen_height)
         
     def to_dict(self):
         """Convert train to dictionary, returning only modified data"""
