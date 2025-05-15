@@ -39,6 +39,7 @@ class BaseAgent:
         self.all_trains = None
         self.passengers = None
         self.delivery_zone = None
+        self.best_scores = None
 
     def get_move(self):
         """
