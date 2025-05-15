@@ -216,7 +216,7 @@ class NetworkManager:
                                 )
                             else:
                                 logger.error(
-                                    f"Name available: {message_data['available']}"
+                                    f"Name available: {message_data['available']}. Reason: {message_data.get('reason', 'Unknown reason')}."
                                 )
                             self.client.name_check_result = message_data.get(
                                 "available", False
