@@ -1,8 +1,8 @@
 import logging
-import time
-
 from client.network import NetworkManager
 from common import move
+import concurrent.futures
+from common.constants import REFERENCE_TICK_RATE
 
 
 class BaseAgent:
@@ -54,10 +54,21 @@ class BaseAgent:
 
         Returning from this method without doing anything will cause the train to continue moving forward.
         """
-        new_direction = self.get_move()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(self.get_move)
+            try:
+                new_direction = future.result(timeout=1/REFERENCE_TICK_RATE)
+            except concurrent.futures.TimeoutError:
+                # The agent took too long to respond
+                error_msg = f"Agent {self.nickname} too slow! Execution exceeded timeout limit of 1/{REFERENCE_TICK_RATE}s"
+                self.logger.error(error_msg)
+                return
+            except Exception as e:
+                self.logger.error(f"get_move() raised an exception: {e}")
+                return
             
         if new_direction not in move.Move:
-            logging.error("get_move() did not return a valid move!")
+            self.logger.error("get_move() did not return a valid move!")
             return
 
         if new_direction == move.Move.DROP:
