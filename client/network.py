@@ -64,17 +64,12 @@ class NetworkManager:
         if stop_client:
             self.client.running = False
 
-            # Afficher un message d'erreur si la déconnexion est due à un timeout du serveur
-            # On laisse le client gérer l'affichage du message et la fermeture
             logger.warning("Server disconnection detected. Stopping client.")
 
-        if self.socket:
-            # Envoyer un message à nous-même pour débloquer le recvfrom
+        if self.socket and self.socket is not None:
             if hasattr(self, "server_addr"):
                 try:
-                    # Obtenir l'adresse locale du socket
                     local_addr = self.socket.getsockname()
-                    # Envoyer un message vide à nous-même pour débloquer le recvfrom
                     dummy_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                     dummy_socket.sendto(b"", local_addr)
                     dummy_socket.close()
