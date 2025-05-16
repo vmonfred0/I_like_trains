@@ -73,11 +73,7 @@ class BaseAgent:
         Wrapper method to call get_move() in a separate thread.
         Stores the result in self._move_result.
         """
-        try:
-            self._move_result = self.get_move()
-        except Exception as e:
-            self.logger.error(f"get_move() raised an exception: {e}")
-            self._move_result = None
+        self._move_result = self.get_move()
 
     def get_move(self):
         """
