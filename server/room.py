@@ -855,6 +855,14 @@ class Room:
             # Add the AI client to the game
             self.game.ai_clients[ai_nickname] = self.ai_clients[ai_nickname]
 
+            # Prepare the game state to send to clients
+            state = self.game.get_state()
+
+            # Create the data packet
+            state_data = {"type": "state", "data": state}
+
+            self.ai_clients[ai_nickname].update_state(state_data)
+
         else:
             logger.warning(
                 f"Train {train_nickname_to_replace} not found in game, cannot create AI client"
