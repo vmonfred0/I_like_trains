@@ -13,7 +13,9 @@ class ServerConfig(BaseModel):
     port: int = 5555
 
     # Numbers of trains in each room.
-    nb_clients_per_room: int = 2
+    # Can be an integer or the string "random".
+    # If "random", a random number between 2 and 4 will be selected.
+    nb_players_per_room: int | str = 2
 
     # Seed for random number generation. If None, a random seed will be generated.
     seed: Optional[int] = None
