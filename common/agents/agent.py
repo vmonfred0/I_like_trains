@@ -5,22 +5,26 @@ import heapq
 #127.0.0.1
 #128.179.154.221
 # Student scipers, will be automatically used to evaluate your code
-#Repo : 1 étage plus haut; 
-#Repo: faire un fork, up_stream, sink forkl
+#BAT: Alok Five
 SCIPERS = ["112233", "445566"]
 
 #Refaire des fonctions pour le train ? 
 class Agent(BaseAgent):
     def my_train(self):
-        #print ( self.all_trains )
-        return self.all_trains[self.nickname]     
+        return self.all_trains[self.nickname]  
+    def other_trains(self):
+        the_trains=[]
+        for i in self.all_trains:
+            the_trains.append(i)
+        the_trains.remove(self.nickname)
+        return the_trains
     def my_direction(self):
         return  Move(tuple(self.my_train()["direction"]))
     def my_wagons(self):
         return self.my_train()["wagons"]
     def my_speed(self,wagon):
         return 0.95**wagon
-    def my_possibile_moves(self):
+    def my_possible_moves(self):
         return [self.my_direction(), self.my_direction().turn_left, self.my_direction().turn_right]
     def my_train_coordinates(self,name):
         return tuple(name["position"])
@@ -56,7 +60,6 @@ class Agent(BaseAgent):
         b= self.get_occupied_cases()
         #a=self.get_coordinates_around_players(self.get_occupied_cases())
         occupied=b
-        print(occupied)
         for i in occupied:
             a,b=i
             discrete_grid[a][b]=1
@@ -86,11 +89,14 @@ class Agent(BaseAgent):
         return zone_around_delivery
             
 
-    def dijkstra(self, grid, start, goal, cell,speed):
+    def dijkstra(self, start, goal,wagons):
         #algorithme de Dijkstra, donnant le plus court chemin pour atteindre une case visée (goal)
         #prend en entrée la grille (grid), la case de départ (start), la case visée (goal),
         #  la taille d'une cellule (cell)
         #rend la distance la plus courte, ainsi que le premier déplacement à effectuer
+        cell=self.cell_size
+        grid=self.grid()
+        speed=0.95**len(wagons)
         rows, cols = len(grid), len(grid[0])
         distances = [[float('inf')] * cols for _ in range(rows)] #on initialise la pondération avec infini pour chaque case
         prev = [[None] * cols for _ in range(rows)]
@@ -120,6 +126,7 @@ class Agent(BaseAgent):
         path = []
         x, y = gx, gy
         if distances[x][y] == float('inf'):
+            print('HOKUS POKUS PIZZA ON FOKUS')
             return None, None, None  # Aucun chemin trouvé
         while (x, y) != (sx, sy):
             path.append((x, y))
@@ -138,55 +145,90 @@ class Agent(BaseAgent):
         time= path_length/speed
 
         return path_length, first_move, time
-    def calculate_best_move_for(self,kind_of_move):
+    def calculate_best_move_for(self,kind_of_move,name):
         #pour un type d'opération à effectuer (récolter/déposer des passagers) 
         #trouve le meilleur trajet à prendre 
         #prend en entrée le type d'opération
         #rend le meilleur trajet (distance, premier mouvement)
         optimum=0
-        best_move = random.choice(self.my_possibile_moves())
+        time=0
+        best_move = random.choice(self.my_possible_moves())
+        optimum_bis=0
+        second_best_move= random.choice(self.my_possible_moves())
+        if name == self.nickname:
+            coordinates=self.my_train_coordinates(self.my_train())
+            wagons=self.my_wagons()
+        else:
+            coordinates=tuple(self.all_trains[name]["position"])
+            wagons=self.all_trains[name]["wagons"]
         for i in range (len(kind_of_move)):
             if kind_of_move == self.passengers:
                #si le type d'opération est aller chercher des passagers, on utilise la formule suivante:
                #nombre de passagers sur la case/distance minimale
                #on trouve la case pour laquelle ce rapport est maximal
                x,y=tuple(self.passengers[i]["position"])
-               a=self.passengers[i]['value']
+               case=x,y
+               a= self.passengers[i]['value']
+                   
+            
             if kind_of_move==self.get_coordinates_delivery_zone():
                 #si le type d'opération est aller dépoer des passagers, on utilise la formule suivante:
                 #nombre de passagers pris en charge/distance minimale
                 #on vérifie s'il est possible et intéressant de déposer des passagers; si oui on trouve
                 #la case la plus proche
                 x,y= self.get_coordinates_delivery_zone()[i]
+                case=x,y
                 a=len(self.my_wagons())
-            speed=self.my_speed(len(self.my_wagons()))
-            path_length,first_move, time_spent =self.dijkstra(self.grid(),(self.my_train_coordinates(self.my_train())),(x,y), self.cell_size, speed) 
+
+            path_length,first_move, time_spent =self.dijkstra(coordinates,(x,y),wagons)
             if time_spent is None:
-                print('x')
-                value=0
+                value=0 
             else:
                 value=a/time_spent
             if optimum < value:
+                optimum_bis=optimum
                 optimum=value
+                case=x,y
+                time=time_spent
+                second_best_move=best_move
                 best_move=first_move
-        return optimum, best_move
-    def calculate_absolute_best_move(self):
+            elif optimum_bis < value:
+                optimum_bis=value
+                second_best_move=first_move
+        return time, optimum, best_move, case, path_length, second_best_move,optimum_bis
+    def calculate_absolute_best_move(self,name):
         #on regarde pour notre situation, la meilleure opération à faire
         #rend le meilleur chemin à effectuer, et le premier déplacement à faire
-        kind_of_moves=[self.passengers,self.get_coordinates_delivery_zone()]
+        kind_of_moves=[self.get_coordinates_delivery_zone(),self.passengers]
         optimum=0
-        best_move= random.choice(self.my_possibile_moves())
+        value_secondary=0
+        best_move= random.choice(self.my_possible_moves())
+        move_secondary= random.choice(self.my_possible_moves())
 
         for i in kind_of_moves:
-            value, move = self.calculate_best_move_for(i)
+            time, value, move, case_chosen, path_length, s_m, o_b = self.calculate_best_move_for(i,name)
             if value > optimum:
+                move_secondary,value_secondary=s_m,o_b
                 optimum, best_move= value, move
-        return optimum, best_move
+                move_chosen=i
+        return optimum, best_move, case_chosen, time, move_chosen, move_secondary,#MODIFICATION
+    def prediction_of_the_other(self):
+        a,best_move,my_case_chosen,my_time,c, secondary=self.calculate_absolute_best_move(self.nickname)
+        if c ==self.passengers and self.other_trains():
+            for i in self.other_trains():
+                if self.all_trains[i]['alive']:
+                    o,b,i_case_chosen,i_time,m,s= self.calculate_absolute_best_move(i)
+                    if i_case_chosen==my_case_chosen and i_time < my_time:
+                        return secondary
+        return best_move
+                        
+                    
     def bastard_move(self):
+        #BAT LES COUILLES
         a=self.get_coordinates_around_delivery_zone(self.get_coordinates_delivery_zone())
         while self.my_wagons == len(a)-1:
             if self.my_train_coordinates not in a:
-                path_length, first_move= self.dijkstra(self.grid, self.my_train_coordinates, a[0], self.cell_size)
+                path_length, first_move= self.dijkstra(self.my_train_coordinates, a[0])
                 return first_move
     #fonctions à implémenter ?  
     # -déterminer mouvement du joueur, s'il va sur des passagers, qu'il y sera avant moi, -> abandonner cette option
@@ -204,9 +246,12 @@ class Agent(BaseAgent):
             x_move,y_move=x0*self.cell_size, y0*self.cell_size
             sum_x= x_move +x_train
             sum_y=y_move +y_train
-            if 0 <=sum_x <=x_safe and 0<=sum_y <=y_safe and  ([sum_x, sum_y] not in self.my_wagons()):
+            if 0 <=sum_x <=x_safe and 0<=sum_y <=y_safe and  ([sum_x, sum_y] not in self.get_occupied_cases()):
+                if a >1: 
+                    next_move= self.get_authorized_moves((sum_x, sum_y), safe, direction, a-1)
+                    if not next_move:
+                        continue
                 authorized_moves.append(i)
-                #améliorer effectuer une itération !
             
         return authorized_moves
 
@@ -216,15 +261,15 @@ class Agent(BaseAgent):
         an algorithm to control your train here. You will be handing in this file.
         This method must return one of moves.MOVE
         """
-
+        print(self.other_trains())
         coordinates= self.my_train_coordinates(self.my_train())
         s_coordinates= self.safe_coordinates(self.game_width, self.game_height, self.cell_size )
         direction= Move(tuple(self.my_train()["direction"]))
-        opt, best= self.calculate_absolute_best_move()
-        authorized_moves=self.get_authorized_moves(coordinates,s_coordinates,direction, 0)
-
+        best= self.prediction_of_the_other()
+        authorized_moves=self.get_authorized_moves(coordinates,s_coordinates,direction, 2)
         for i in authorized_moves:
             if i.value == best:
+
                 return i
         return random.choice(authorized_moves) 
 
