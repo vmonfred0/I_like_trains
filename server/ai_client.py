@@ -3,8 +3,6 @@ AI client for the game "I Like Trains"
 This module provides an AI client that can control trains on the server side
 """
 
-import threading
-import time
 import logging
 import json
 from server.passenger import Passenger
@@ -98,7 +96,7 @@ class AIClient:
             logger.info(f"Importing module: {module_path}")
 
             module = importlib.import_module(module_path)
-            self.agent = module.Agent(nickname, self.network, logger="server.ai_agent")
+            self.agent = module.Agent(nickname, self.network, logger="server.ai_agent", timeout=1 / self.room.config.tick_rate)
             logger.info(f"AI agent {nickname} initialized using {ai_agent_file_name}")
 
         except ImportError as e:
@@ -185,12 +183,6 @@ class AIClient:
         # Update agent state only if train is alive and game contains train
         if not self.is_dead and self.game.contains_train(self.nickname):
             self.agent.update_agent()
-        else:
-            # Log why the train is not updated
-            if self.is_dead:
-                logger.debug(f"Not updating agent for AI client {self.nickname}: train is dead")
-            else:
-                logger.debug(f"Not updating agent for AI client {self.nickname}: train is not in the game")
 
     def stop(self):
         """Stop the AI client"""

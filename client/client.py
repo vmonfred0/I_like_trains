@@ -146,7 +146,7 @@ class Client:
 
                 # Add parent directory to Python path to allow importing agents package
                 module = importlib.import_module(module_path)
-                self.agent = module.Agent(self.nickname, self.network)
+                self.agent = module.Agent(self.nickname, self.network, timeout=1/REFERENCE_TICK_RATE)
 
         self.ping_response_received = False
         self.server_disconnected = False

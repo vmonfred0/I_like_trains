@@ -163,7 +163,13 @@ class Server:
         """
         room_id = str(uuid.uuid4())[:8]
 
-        nb_players_per_room = self.config.nb_clients_per_room
+        nb_players_per_room = self.config.nb_players_per_room
+        if nb_players_per_room == "random":
+            nb_players_per_room = random.randint(2, 4)
+            logger.info(f"Randomly selected {nb_players_per_room} clients per room.")
+        else:
+            nb_players_per_room = int(nb_players_per_room)
+
         logger.info(f"Creating room {room_id} with size {nb_players_per_room}.")
 
         new_room = Room(
@@ -187,14 +193,10 @@ class Server:
         # First try to find a non-full room
         for room in self.rooms.values():
             if (
-                room.nb_players_max == self.config.nb_clients_per_room
-                and not room.is_full()
+                not room.is_full()
                 and not room.game_thread
             ):
                 return room
-        logger.debug(
-            f"No suitable room found for {self.config.nb_clients_per_room} clients"
-        )
         # If no suitable room found, create a new one
         return self.create_room(True)
 
@@ -359,8 +361,9 @@ class Server:
         name_to_check = message.get("nickname", "")
         if addr:
             if not name_to_check or len(name_to_check) == 0 or len(name_to_check) > 15:
+                reason = "empty name" if not name_to_check else "name too long" if len(name_to_check) > 15 else "empty name"
                 # Empty name, considered as not available
-                response = {"type": "name_check", "available": False}
+                response = {"type": "name_check", "available": False, "reason": reason}
 
                 try:
                     self.server_socket.sendto(
@@ -397,12 +400,15 @@ class Server:
             name_available = False
 
         # Check if name starts with "Bot " (invalid)
-        if name_available and name_to_check.startswith("Bot "):
+        if name_available and name_to_check.startswith("staff"):
             name_available = False
-            logger.debug(f"Name '{name_to_check}' starts with 'Bot ', not available")
+            logger.debug(f"Name '{name_to_check}' starts with 'staff', not available")
+            reason = "name starts with 'staff'"
 
         if addr:
             response = {"type": "name_check", "available": name_available}
+            if not name_available:
+                response["reason"] = reason
 
             try:
                 self.server_socket.sendto((json.dumps(response) + "\n").encode(), addr)

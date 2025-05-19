@@ -466,17 +466,6 @@ class Game:
             for ai_name, ai_client in self.ai_clients.items():
                 # Add automatic respawn logic
                 if ai_client.is_dead and ai_client.waiting_for_respawn:
-                    if ai_client.in_waiting_room:
-                        logger.debug(
-                            f"AI client {ai_name} in waiting room, trying to start game"
-                        )
-                        # Start game if in waiting room
-                        if (
-                            not ai_client.room.game_thread
-                            or not ai_client.room.game_thread.is_alive()
-                        ):
-                            if ai_client.room.get_player_count() >= ai_client.room.nb_players_max:
-                                ai_client.room.start_game()
 
                     cooldown = self.get_train_respawn_cooldown(ai_name)
                     if cooldown <= 0:
