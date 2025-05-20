@@ -56,7 +56,6 @@ class Agent(BaseAgent):
         b= self.get_occupied_cases()
         #a=self.get_coordinates_around_players(self.get_occupied_cases())
         occupied=b
-        print(occupied)
         for i in occupied:
             a,b=i
             discrete_grid[a][b]=1
@@ -204,7 +203,7 @@ class Agent(BaseAgent):
             x_move,y_move=x0*self.cell_size, y0*self.cell_size
             sum_x= x_move +x_train
             sum_y=y_move +y_train
-            if 0 <=sum_x <=x_safe and 0<=sum_y <=y_safe and  ([sum_x, sum_y] not in self.my_wagons()):
+            if 0 <=sum_x <=x_safe and 0<=sum_y <=y_safe and  ([sum_x, sum_y] not in self.get_occupied_cases()):
                 authorized_moves.append(i)
                 #améliorer effectuer une itération !
             
